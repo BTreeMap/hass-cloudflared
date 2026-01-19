@@ -5,7 +5,27 @@
   "labels": ["dependencies", "no-stale"],
   "commitMessagePrefix": "⬆️",
   "commitMessageTopic": "{{depName}}",
-  "extends": ["customManagers:dockerfileVersions"],
+  "enabledManagers": ["customManagers", "dockerfile", "github-actions"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["^cloudflared/Dockerfile$"],
+      "matchStrings": ["ARG YQ_VERSION=\"(?<currentValue>[^\"]+)\""],
+      "datasourceTemplate": "repology",
+      "depNameTemplate": "yq-go",
+      "packageNameTemplate": "alpine_3_22/yq-go",
+      "versioningTemplate": "loose"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^cloudflared/Dockerfile$"],
+      "matchStrings": ["ARG CLOUDFLARED_VERSION=\"(?<currentValue>[^\"]+)\""],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "cloudflared",
+      "packageNameTemplate": "cloudflare/cloudflared",
+      "versioningTemplate": "loose"
+    }
+  ],
   "packageRules": [
     {
       "groupName": "App (Add-on) base image",

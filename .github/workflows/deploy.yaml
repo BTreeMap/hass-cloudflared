@@ -35,7 +35,7 @@ jobs:
       version: ${{ steps.release.outputs.version }}
     steps:
       - name: ⤵️ Check out code from GitHub
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.1
       - name: 🚀 Run app (add-on) information action
         id: information
         uses: homeassistant-apps/action-app-information@v2
@@ -75,7 +75,7 @@ jobs:
         architecture: ${{ fromJson(needs.information.outputs.architectures) }}
     steps:
       - name: ⤵️ Check out code from GitHub
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.1
       - name: 🏗 Set up QEMU
         uses: docker/setup-qemu-action@v3.7.0
       - name: 🏗 Set up Docker Buildx
@@ -92,11 +92,16 @@ jobs:
             echo "::error ::Could not determine platform for architecture ${{ matrix.architecture }}"
             exit 1
           fi
+      - name: 🔤 Normalize registry owner
+        id: registry
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "owner=$owner" >> "$GITHUB_OUTPUT"
       - name: 🏗  Login to GitHub Container Registry
         uses: docker/login-action@v3.6.0
         with:
           registry: ghcr.io
-          username: ${{ github.repository_owner }}
+          username: ${{ steps.registry.outputs.owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: 🚀 Build
         uses: docker/build-push-action@v6.18.0
@@ -104,8 +109,8 @@ jobs:
           load: true
           # yamllint disable rule:line-length
           tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ needs.information.outputs.slug }}/${{ matrix.architecture }}:${{ needs.information.outputs.environment }}
-            ghcr.io/${{ github.repository_owner }}/${{ needs.information.outputs.slug }}/${{ matrix.architecture }}:${{ needs.information.outputs.version }}
+            ghcr.io/${{ steps.registry.outputs.owner }}/${{ needs.information.outputs.slug }}/${{ matrix.architecture }}:${{ needs.information.outputs.environment }}
+            ghcr.io/${{ steps.registry.outputs.owner }}/${{ needs.information.outputs.slug }}/${{ matrix.architecture }}:${{ needs.information.outputs.version }}
           # yamllint enable rule:line-length
           context: ${{ needs.information.outputs.target }}
           file: ${{ needs.information.outputs.target }}/Dockerfile
@@ -124,9 +129,9 @@ jobs:
       - name: 🚀 Push
         run: |
           docker push \
-            "ghcr.io/${{ github.repository_owner }}/${{ needs.information.outputs.slug }}/${{ matrix.architecture }}:${{ needs.information.outputs.environment }}"
+            "ghcr.io/${{ steps.registry.outputs.owner }}/${{ needs.information.outputs.slug }}/${{ matrix.architecture }}:${{ needs.information.outputs.environment }}"
           docker push \
-            "ghcr.io/${{ github.repository_owner }}/${{ needs.information.outputs.slug }}/${{ matrix.architecture }}:${{ needs.information.outputs.version }}"
+            "ghcr.io/${{ steps.registry.outputs.owner }}/${{ needs.information.outputs.slug }}/${{ matrix.architecture }}:${{ needs.information.outputs.version }}"
       # yamllint enable rule:line-length
   publish-edge:
     name: 📢 Publish to edge repository
@@ -139,7 +144,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 🚀 Dispatch update signal - homeassistant-apps/repository-edge
-        uses: peter-evans/repository-dispatch@v4
+        uses: peter-evans/repository-dispatch@v4.0.1
         with:
           token: ${{ secrets.PAT_BRENNER_BOT }}
           repository: ${{ github.repository_owner }}/repository-edge
@@ -152,7 +157,7 @@ jobs:
               "version": "${{ needs.information.outputs.version }}"
             }
       - name: 🚀 Dispatch repository updater update signal - brenner-tobias/ha-addons-edge
-        uses: peter-evans/repository-dispatch@v4
+        uses: peter-evans/repository-dispatch@v4.0.1
         with:
           token: ${{ secrets.PAT_BRENNER_BOT }}
           repository: brenner-tobias/ha-addons-edge
@@ -176,7 +181,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 🚀 Dispatch repository updater update signal - homeassistant-apps/repository
-        uses: peter-evans/repository-dispatch@v4
+        uses: peter-evans/repository-dispatch@v4.0.1
         with:
           token: ${{ secrets.PAT_BRENNER_BOT }}
           repository: ${{ github.repository_owner }}/repository
@@ -189,7 +194,7 @@ jobs:
               "version": "${{ github.event.release.tag_name }}"
             }
       - name: 🚀 Dispatch repository updater update signal - brenner-tobias/ha-addons
-        uses: peter-evans/repository-dispatch@v4
+        uses: peter-evans/repository-dispatch@v4.0.1
         with:
           token: ${{ secrets.PAT_BRENNER_BOT }}
           repository: brenner-tobias/ha-addons
