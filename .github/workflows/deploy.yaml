@@ -11,193 +11,22 @@ on:
     branches: [main]
     types:
       - completed
-concurrency:
-  group: deploy
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
-  information:
-    if: |
+  deploy:
+    if: >
       github.event_name == 'release'
       || (
         github.event_name == 'workflow_run'
         && github.event.workflow_run.conclusion == 'success'
       )
-    name: ℹ️ Gather app (add-on) information
-    runs-on: ubuntu-latest
-    outputs:
-      architectures: ${{ steps.information.outputs.architectures }}
-      build: ${{ steps.information.outputs.build }}
-      description: ${{ steps.information.outputs.description }}
-      environment: ${{ steps.release.outputs.environment }}
-      name: ${{ steps.information.outputs.name }}
-      slug: ${{ steps.override.outputs.slug }}
-      target: ${{ steps.information.outputs.target }}
-      version: ${{ steps.release.outputs.version }}
-    steps:
-      - name: ⤵️ Check out code from GitHub
-        uses: actions/checkout@v6
-      - name: 🚀 Run app (add-on) information action
-        id: information
-        uses: homeassistant-apps/action-app-information@v2
-      - name: 🚀 Process possible slug override
-        id: override
-        run: |
-          slug="${{ steps.information.outputs.slug }}"
-          if [[ ! -z "${{ inputs.slug }}" ]]; then
-            slug="${{ inputs.slug }}"
-          fi
-          echo "slug=$slug" >> $GITHUB_OUTPUT
-      - name: ℹ️ Gather version and environment
-        id: release
-        run: |
-          sha="${{ github.sha }}"
-          environment="edge"
-          version="${sha:0:7}"
-          if [[ "${{ github.event_name }}" = "release" ]]; then
-            version="${{ github.event.release.tag_name }}"
-            version="${version,,}"
-            version="${version#v}"
-            environment="stable"
-            if [[ "${{ github.event.release.prerelease }}" = "true" ]]; then
-              environment="beta"
-            fi
-          fi
-
-          echo "environment=$environment" >> $GITHUB_OUTPUT
-          echo "version=$version" >> $GITHUB_OUTPUT
-
-  deploy:
-    name: 👷 Build & Deploy ${{ matrix.architecture }}
-    needs: information
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        architecture: ${{ fromJson(needs.information.outputs.architectures) }}
-    steps:
-      - name: ⤵️ Check out code from GitHub
-        uses: actions/checkout@v6
-      - name: 🏗 Set up QEMU
-        uses: docker/setup-qemu-action@v3.7.0
-      - name: 🏗 Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3.12.0
-      - name: ℹ️ Compose build flags
-        id: flags
-        run: |
-          echo "date=$(date +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_OUTPUT
-          if [[ "${{ matrix.architecture}}" = "amd64" ]]; then
-            echo "platform=linux/amd64" >> $GITHUB_OUTPUT
-          elif [[ "${{ matrix.architecture }}" = "aarch64" ]]; then
-            echo "platform=linux/arm64/v8" >> $GITHUB_OUTPUT
-          else
-            echo "::error ::Could not determine platform for architecture ${{ matrix.architecture }}"
-            exit 1
-          fi
-      - name: 🏗  Login to GitHub Container Registry
-        uses: docker/login-action@v3.6.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: 🚀 Build
-        uses: docker/build-push-action@v6.18.0
-        with:
-          load: true
-          # yamllint disable rule:line-length
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ needs.information.outputs.slug }}/${{ matrix.architecture }}:${{ needs.information.outputs.environment }}
-            ghcr.io/${{ github.repository_owner }}/${{ needs.information.outputs.slug }}/${{ matrix.architecture }}:${{ needs.information.outputs.version }}
-          # yamllint enable rule:line-length
-          context: ${{ needs.information.outputs.target }}
-          file: ${{ needs.information.outputs.target }}/Dockerfile
-          cache-from: type=gha,scope=${{ needs.information.outputs.slug }}-${{ matrix.architecture }}
-          cache-to: type=gha,mode=max,scope=${{ needs.information.outputs.slug }}-${{ matrix.architecture }}
-          platforms: ${{ steps.flags.outputs.platform }}
-          build-args: |
-            BUILD_ARCH=${{ matrix.architecture }}
-            BUILD_DATE=${{ steps.flags.outputs.date }}
-            BUILD_DESCRIPTION=${{ needs.information.outputs.description }}
-            BUILD_NAME=${{ needs.information.outputs.name }}
-            BUILD_REF=${{ github.sha }}
-            BUILD_REPOSITORY=${{ github.repository }}
-            BUILD_VERSION=${{ needs.information.outputs.version }}
-      # yamllint disable rule:line-length
-      - name: 🚀 Push
-        run: |
-          docker push \
-            "ghcr.io/${{ github.repository_owner }}/${{ needs.information.outputs.slug }}/${{ matrix.architecture }}:${{ needs.information.outputs.environment }}"
-          docker push \
-            "ghcr.io/${{ github.repository_owner }}/${{ needs.information.outputs.slug }}/${{ matrix.architecture }}:${{ needs.information.outputs.version }}"
-      # yamllint enable rule:line-length
-  publish-edge:
-    name: 📢 Publish to edge repository
-    if: needs.information.outputs.environment == 'edge'
-    needs:
-      - information
-      - deploy
-    environment:
-      name: ${{ needs.information.outputs.environment }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: 🚀 Dispatch update signal - homeassistant-apps/repository-edge
-        uses: peter-evans/repository-dispatch@v4
-        with:
-          token: ${{ secrets.PAT_BRENNER_BOT }}
-          repository: ${{ github.repository_owner }}/repository-edge
-          event-type: update
-          client-payload: >
-            {
-              "addon": "${{ needs.information.outputs.slug }}",
-              "name": "${{ needs.information.outputs.name }}",
-              "repository": "${{ github.repository }}",
-              "version": "${{ needs.information.outputs.version }}"
-            }
-      - name: 🚀 Dispatch repository updater update signal - brenner-tobias/ha-addons-edge
-        uses: peter-evans/repository-dispatch@v4
-        with:
-          token: ${{ secrets.PAT_BRENNER_BOT }}
-          repository: brenner-tobias/ha-addons-edge
-          event-type: update
-          client-payload: >
-            {
-              "addon": "${{ needs.information.outputs.slug }}",
-              "name": "${{ needs.information.outputs.name }}",
-              "repository": "${{ github.repository }}",
-              "version": "${{ needs.information.outputs.version }}"
-            }
-
-  publish-stable:
-    name: 📢 Publish to stable repository
-    if: needs.information.outputs.environment == 'stable'
-    needs:
-      - information
-      - deploy
-    environment:
-      name: ${{ needs.information.outputs.environment }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: 🚀 Dispatch repository updater update signal - homeassistant-apps/repository
-        uses: peter-evans/repository-dispatch@v4
-        with:
-          token: ${{ secrets.PAT_BRENNER_BOT }}
-          repository: ${{ github.repository_owner }}/repository
-          event-type: update
-          client-payload: >
-            {
-              "addon": "${{ needs.information.outputs.slug }}",
-              "name": "${{ needs.information.outputs.name }}",
-              "repository": "${{ github.repository }}",
-              "version": "${{ github.event.release.tag_name }}"
-            }
-      - name: 🚀 Dispatch repository updater update signal - brenner-tobias/ha-addons
-        uses: peter-evans/repository-dispatch@v4
-        with:
-          token: ${{ secrets.PAT_BRENNER_BOT }}
-          repository: brenner-tobias/ha-addons
-          event-type: update
-          client-payload: >
-            {
-              "addon": "${{ needs.information.outputs.slug }}",
-              "name": "${{ needs.information.outputs.name }}",
-              "repository": "${{ github.repository }}",
-              "version": "${{ github.event.release.tag_name }}"
-            }
+    uses: ./.github/workflows/upstream/deploy.yaml
+    secrets: inherit
+    with:
+      event_name: ${{ github.event_name }}
+      release_prerelease: ${{ github.event.release.prerelease || false }}
+      release_tag_name: ${{ github.event.release.tag_name || '' }}
