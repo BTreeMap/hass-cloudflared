@@ -15,6 +15,10 @@ on:
       - synchronize
   workflow_dispatch:
 
+permissions:
+  contents: write
+  pull-requests: read
+
 jobs:
   information:
     name: Gather app (add-on) information

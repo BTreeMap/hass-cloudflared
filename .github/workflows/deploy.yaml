@@ -14,6 +14,10 @@ on:
 concurrency:
   group: deploy
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   information:
     if: |
