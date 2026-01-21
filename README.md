@@ -41,7 +41,7 @@ app (add-on).
 To install this app (add-on), manually add our repository to Home Assistant
 using [this link][repository] or by clicking the button below.
 
-The container image is published as `btreemap/cloudflared` with a unified
+The container image is published as `ghcr.io/btreemap/cloudflared` with a unified
 multi-architecture manifest for `amd64` and `aarch64`.
 
 [![Add Repository to HA][my-ha-badge]][my-ha-url]

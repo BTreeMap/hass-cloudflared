@@ -112,21 +112,16 @@ jobs:
           registry: ghcr.io
           username: ${{ steps.registry.outputs.owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: 🏗 Login to Docker Hub
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: 🚀 Build
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
           load: true
           # yamllint disable rule:line-length
           tags: |
-            btreemap/cloudflared:${{ matrix.architecture }}-${{ needs.information.outputs.environment }}
-            btreemap/cloudflared:${{ matrix.architecture }}-${{ needs.information.outputs.version }}
             ghcr.io/${{ steps.registry.outputs.owner }}/${{ needs.information.outputs.slug }}/${{ matrix.architecture }}:${{ needs.information.outputs.environment }}
             ghcr.io/${{ steps.registry.outputs.owner }}/${{ needs.information.outputs.slug }}/${{ matrix.architecture }}:${{ needs.information.outputs.version }}
+            ghcr.io/${{ steps.registry.outputs.owner }}/cloudflared:${{ matrix.architecture }}-${{ needs.information.outputs.environment }}
+            ghcr.io/${{ steps.registry.outputs.owner }}/cloudflared:${{ matrix.architecture }}-${{ needs.information.outputs.version }}
           # yamllint enable rule:line-length
           context: ${{ needs.information.outputs.target }}
           file: ${{ needs.information.outputs.target }}/Dockerfile
@@ -148,8 +143,8 @@ jobs:
             "ghcr.io/${{ steps.registry.outputs.owner }}/${{ needs.information.outputs.slug }}/${{ matrix.architecture }}:${{ needs.information.outputs.environment }}"
           docker push \
             "ghcr.io/${{ steps.registry.outputs.owner }}/${{ needs.information.outputs.slug }}/${{ matrix.architecture }}:${{ needs.information.outputs.version }}"
-          docker push "btreemap/cloudflared:${{ matrix.architecture }}-${{ needs.information.outputs.environment }}"
-          docker push "btreemap/cloudflared:${{ matrix.architecture }}-${{ needs.information.outputs.version }}"
+          docker push "ghcr.io/${{ steps.registry.outputs.owner }}/cloudflared:${{ matrix.architecture }}-${{ needs.information.outputs.environment }}"
+          docker push "ghcr.io/${{ steps.registry.outputs.owner }}/cloudflared:${{ matrix.architecture }}-${{ needs.information.outputs.version }}"
       # yamllint enable rule:line-length
   manifest:
     name: 📦 Publish multi-arch manifest
@@ -160,18 +155,19 @@ jobs:
     steps:
       - name: 🏗 Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
-      - name: 🏗 Login to Docker Hub
+      - name: 🏗  Login to GitHub Container Registry
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: 🚀 Create manifest list
         run: |
           docker buildx imagetools create \
-            --tag btreemap/cloudflared:${{ needs.information.outputs.environment }} \
-            btreemap/cloudflared:amd64-${{ needs.information.outputs.environment }} \
-            btreemap/cloudflared:aarch64-${{ needs.information.outputs.environment }}
+            --tag ghcr.io/${{ github.repository_owner }}/cloudflared:${{ needs.information.outputs.environment }} \
+            ghcr.io/${{ github.repository_owner }}/cloudflared:amd64-${{ needs.information.outputs.environment }} \
+            ghcr.io/${{ github.repository_owner }}/cloudflared:aarch64-${{ needs.information.outputs.environment }}
           docker buildx imagetools create \
-            --tag btreemap/cloudflared:${{ needs.information.outputs.version }} \
-            btreemap/cloudflared:amd64-${{ needs.information.outputs.version }} \
-            btreemap/cloudflared:aarch64-${{ needs.information.outputs.version }}
+            --tag ghcr.io/${{ github.repository_owner }}/cloudflared:${{ needs.information.outputs.version }} \
+            ghcr.io/${{ github.repository_owner }}/cloudflared:amd64-${{ needs.information.outputs.version }} \
+            ghcr.io/${{ github.repository_owner }}/cloudflared:aarch64-${{ needs.information.outputs.version }}
