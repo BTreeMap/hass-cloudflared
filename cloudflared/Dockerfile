@@ -34,11 +34,11 @@ LABEL \
     io.hass.arch="${BUILD_ARCH}" \
     io.hass.type="addon" \
     io.hass.version="${BUILD_VERSION}" \
-    maintainer="homeassistant-apps <https://github.com/homeassistant-apps>" \
+    maintainer="Joe Fang <hass-cloudflared@oss.joefang.org>" \
     org.opencontainers.image.title="${BUILD_NAME}" \
     org.opencontainers.image.description="${BUILD_DESCRIPTION}" \
-    org.opencontainers.image.vendor="homeassistant-apps <https://github.com/homeassistant-apps>" \
-    org.opencontainers.image.authors="homeassistant-apps <https://github.com/homeassistant-apps>" \
+    org.opencontainers.image.vendor="BTreeMap" \
+    org.opencontainers.image.authors="Joe Fang <hass-cloudflared@oss.joefang.org>" \
     org.opencontainers.image.licenses="MIT" \
     org.opencontainers.image.url="https://github.com/${BUILD_REPOSITORY}" \
     org.opencontainers.image.source="https://github.com/${BUILD_REPOSITORY}" \
