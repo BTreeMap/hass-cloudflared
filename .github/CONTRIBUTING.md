@@ -26,5 +26,5 @@ Even better: You could submit a pull request with a fix / new feature!
    the reviewer to merge it for you.
 
 [coc]: /.github/CODE_OF_CONDUCT.md
-[github]: https://github.com/homeassistant-apps/app-cloudflared/issues
-[prs]: https://github.com/homeassistant-apps/app-cloudflared/pulls
+[github]: https://github.com/BTreeMap/hass-cloudflared/issues
+[prs]: https://github.com/BTreeMap/hass-cloudflared/pulls

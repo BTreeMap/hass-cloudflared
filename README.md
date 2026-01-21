@@ -9,7 +9,6 @@
 
 [![Github Actions][github-actions-shield]][github-actions]
 ![Project Maintenance][maintenance-shield]
-![Reported Installations][installations-shield-stable]
 
 Connect remotely to your Home Assistant and other services, without opening ports
 using Cloudflare Tunnel.
@@ -42,6 +41,9 @@ app (add-on).
 To install this app (add-on), manually add our repository to Home Assistant
 using [this link][repository] or by clicking the button below.
 
+The container image is published as `ghcr.io/btreemap/cloudflared` with a unified
+multi-architecture manifest for `amd64` and `aarch64`.
+
 [![Add Repository to HA][my-ha-badge]][my-ha-url]
 
 ## Support
@@ -50,18 +52,20 @@ Got questions?
 
 Feel free to [open an issue here][issue] on GitHub.
 
-## Authors & contributors
+## Maintainer
 
-The original setup of this repository is by [Tobias Brenner][tobias].
+Joe Fang (hass-cloudflared@oss.joefang.org)
 
-For a full list of all authors and contributors,
-check [the contributor's page][contributors].
+## Contributors
+
+For a full list of all authors and contributors, check
+[the contributor's page][contributors].
 
 ## License
 
 MIT License
 
-Copyright (c) 2026 Unofficial Home Assistant Apps (Add-ons)
+Copyright (c) 2026 Joe Fang
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -84,19 +88,17 @@ SOFTWARE.
 [aarch64-shield]: https://img.shields.io/badge/aarch64-yes-green.svg
 [amd64-shield]: https://img.shields.io/badge/amd64-yes-green.svg
 [cloudflare-sssa]: https://www.cloudflare.com/terms/
-[contributors]: https://github.com/homeassistant-apps/app-cloudflared/graphs/contributors
+[contributors]: https://github.com/BTreeMap/hass-cloudflared/graphs/contributors
 [docs]: cloudflared/DOCS.md
-[github-actions-shield]: https://github.com/homeassistant-apps/app-cloudflared/workflows/CI/badge.svg
-[github-actions]: https://github.com/homeassistant-apps/app-cloudflared/actions
-[repository]: https://github.com/homeassistant-apps/repository
-[issue]: https://github.com/homeassistant-apps/app-cloudflared/issues
-[license-shield]: https://img.shields.io/github/license/homeassistant-apps/app-cloudflared
+[github-actions-shield]: https://github.com/BTreeMap/hass-cloudflared/actions/workflows/ci.yaml/badge.svg
+[github-actions]: https://github.com/BTreeMap/hass-cloudflared/actions
+[repository]: https://github.com/BTreeMap/hass-cloudflared
+[issue]: https://github.com/BTreeMap/hass-cloudflared/issues
+[license-shield]: https://img.shields.io/github/license/BTreeMap/hass-cloudflared
 [maintenance-shield]: https://img.shields.io/maintenance/yes/2026.svg
 [project-stage-shield]: https://img.shields.io/badge/project%20stage-production%20ready-brightgreen.svg
-[releases-shield]: https://img.shields.io/github/v/release/homeassistant-apps/app-cloudflared?include_prereleases
-[releases]: https://github.com/homeassistant-apps/app-cloudflared/releases
-[tobias]: https://github.com/brenner-tobias
+[releases-shield]: https://img.shields.io/github/v/release/BTreeMap/hass-cloudflared?include_prereleases
+[releases]: https://github.com/BTreeMap/hass-cloudflared/releases
 [my-ha-badge]: https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg
-[my-ha-url]: https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fhomeassistant-apps%2Frepository
-[wiki]: https://github.com/homeassistant-apps/app-cloudflared/wiki/How-tos
-[installations-shield-stable]: https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fanalytics.home-assistant.io%2Faddons.json&query=%24%5B%229074a9fa_cloudflared%22%5D.total&label=Reported%20Installations&link=https%3A%2F%2Fanalytics.home-assistant.io/add-ons
+[my-ha-url]: https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FBTreeMap%2Fhass-cloudflared
+[wiki]: https://github.com/BTreeMap/hass-cloudflared/wiki/How-tos

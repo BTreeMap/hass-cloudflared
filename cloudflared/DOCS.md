@@ -335,18 +335,20 @@ If you need assistance changing the config, please follow the
 For more advance [How-Tos][how-tos] and a [Troubleshooting Section][troubleshooting],
 please visit the [App (Add-On) Wiki on GitHub][addon-wiki].
 
-## Authors & contributors
+## Maintainer
 
-The original setup of this repository is by [Tobias Brenner][tobias].
+Joe Fang (hass-cloudflared@oss.joefang.org)
 
-For a full list of all authors and contributors,
-check [the contributor's page][contributors].
+## Contributors
+
+For a full list of all authors and contributors, check
+[the contributor's page][contributors].
 
 ## License
 
 MIT License
 
-Copyright (c) 2026 [homeassistant-apps][github-org]
+Copyright (c) 2026 Joe Fang
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -366,10 +368,10 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-[addon-installation]: https://github.com/homeassistant-apps/app-cloudflared#installation
-[addon-remote-tunnel]: https://github.com/homeassistant-apps/app-cloudflared/wiki/How-tos#how-to-configure-remote-tunnels
-[addon-remote-or-local]: https://github.com/homeassistant-apps/app-cloudflared/wiki/How-tos#local-vs-remote-managed-tunnels
-[addon-wiki]: https://github.com/homeassistant-apps/app-cloudflared/wiki
+[addon-installation]: https://github.com/BTreeMap/hass-cloudflared#installation
+[addon-remote-tunnel]: https://github.com/BTreeMap/hass-cloudflared/wiki/How-tos#how-to-configure-remote-tunnels
+[addon-remote-or-local]: https://github.com/BTreeMap/hass-cloudflared/wiki/How-tos#local-vs-remote-managed-tunnels
+[addon-wiki]: https://github.com/BTreeMap/hass-cloudflared/wiki
 [advancedconfiguration]: https://www.home-assistant.io/getting-started/configuration/
 [http-integration]: https://www.home-assistant.io/getting-started/configuration/
 [homeassistant-config-splitting]: https://www.home-assistant.io/docs/configuration/splitting_configuration/
@@ -377,11 +379,9 @@ SOFTWARE.
 [cloudflare-sssa]: https://www.cloudflare.com/en-gb/terms/
 [cloudflare-run_parameter]: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/configure-tunnels/tunnel-run-parameters/
 [cloudflare-websockets]: https://developers.cloudflare.com/network/websockets/
-[contributors]: https://github.com/homeassistant-apps/app-cloudflared/graphs/contributors
-[how-tos]: https://github.com/homeassistant-apps/app-cloudflared/wiki/How-tos
+[contributors]: https://github.com/BTreeMap/hass-cloudflared/graphs/contributors
+[how-tos]: https://github.com/BTreeMap/hass-cloudflared/wiki/How-tos
 [nginx_proxy_manager]: https://github.com/hassio-addons/addon-nginx-proxy-manager
-[tobias]: https://github.com/homeassistant-apps
-[troubleshooting]: https://github.com/homeassistant-apps/app-cloudflared/wiki/Troubleshooting
+[troubleshooting]: https://github.com/BTreeMap/hass-cloudflared/wiki/Troubleshooting
 [disablechunkedencoding]: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/configuration/configuration-file/ingress#disablechunkedencoding
 [create-remote-managed-tunnel]: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/tunnel-guide/#1-create-a-tunnel
-[github-org]: https://github.com/homeassistant-apps
