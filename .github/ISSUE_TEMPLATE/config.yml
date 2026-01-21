@@ -3,7 +3,7 @@ blank_issues_enabled: false
 contact_links:
   - name: I have a question or need support
     url: https://github.com/BTreeMap/hass-cloudflared/discussions/new
-    about: We use GitHub for tracking bugs, check Discussions for help.
+    about: We use GitHub for tracking bugs; use Discussions for questions and support.
   - name: Feature Request
     url: https://github.com/BTreeMap/hass-cloudflared/discussions/new
     about: Please use create a Discussions for making feature requests.
