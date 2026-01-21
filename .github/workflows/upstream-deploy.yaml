@@ -155,19 +155,24 @@ jobs:
     steps:
       - name: 🏗 Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - name: 🔤 Normalize registry owner
+        id: registry
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "owner=$owner" >> "$GITHUB_OUTPUT"
       - name: 🏗  Login to GitHub Container Registry
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
           registry: ghcr.io
-          username: ${{ github.repository_owner }}
+          username: ${{ steps.registry.outputs.owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: 🚀 Create manifest list
         run: |
           docker buildx imagetools create \
-            --tag ghcr.io/${{ github.repository_owner }}/cloudflared:${{ needs.information.outputs.environment }} \
-            ghcr.io/${{ github.repository_owner }}/cloudflared:amd64-${{ needs.information.outputs.environment }} \
-            ghcr.io/${{ github.repository_owner }}/cloudflared:aarch64-${{ needs.information.outputs.environment }}
+            --tag ghcr.io/${{ steps.registry.outputs.owner }}/cloudflared:${{ needs.information.outputs.environment }} \
+            ghcr.io/${{ steps.registry.outputs.owner }}/cloudflared:amd64-${{ needs.information.outputs.environment }} \
+            ghcr.io/${{ steps.registry.outputs.owner }}/cloudflared:aarch64-${{ needs.information.outputs.environment }}
           docker buildx imagetools create \
-            --tag ghcr.io/${{ github.repository_owner }}/cloudflared:${{ needs.information.outputs.version }} \
-            ghcr.io/${{ github.repository_owner }}/cloudflared:amd64-${{ needs.information.outputs.version }} \
-            ghcr.io/${{ github.repository_owner }}/cloudflared:aarch64-${{ needs.information.outputs.version }}
+            --tag ghcr.io/${{ steps.registry.outputs.owner }}/cloudflared:${{ needs.information.outputs.version }} \
+            ghcr.io/${{ steps.registry.outputs.owner }}/cloudflared:amd64-${{ needs.information.outputs.version }} \
+            ghcr.io/${{ steps.registry.outputs.owner }}/cloudflared:aarch64-${{ needs.information.outputs.version }}
