@@ -51,7 +51,7 @@ def _ensure_bashio_lib():
             member_path = (cache_root / member.name).resolve()
             if not member_path.is_relative_to(cache_root_resolved):
                 raise RuntimeError("Unsafe path detected in bashio archive")
-        tar.extractall(cache_root, members=members)
+        tar.extractall(cache_root, members=members, filter="data")
     return lib_dir
 
 

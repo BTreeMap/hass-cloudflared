@@ -1,0 +1,14 @@
+[project]
+name = "hass-cloudflared-tests"
+version = "0.1.0"
+description = "Test tooling for hass-cloudflared"
+requires-python = ">=3.12"
+
+[project.optional-dependencies]
+test = [
+  "pytest>=9.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
