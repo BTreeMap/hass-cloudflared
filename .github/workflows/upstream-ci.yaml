@@ -103,6 +103,19 @@ jobs:
           shopt -s globstar
           cat **/*.json | jq '.'
 
+  test-python:
+    name: Python Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⤵️ Check out code from GitHub
+        uses: actions/checkout@v6
+      - name: 📦 Install test dependencies
+        run: |
+          python -m pip install pytest pyyaml
+      - name: 🧪 Run pytest
+        run: |
+          python -m pytest -q
+
   lint-markdown:
     name: MarkdownLint
     runs-on: ubuntu-latest
@@ -150,6 +163,7 @@ jobs:
       - lint-addon
       - lint-hadolint
       - lint-json
+      - test-python
       - lint-markdown
       - lint-prettier
       - lint-shellcheck
@@ -194,6 +208,19 @@ jobs:
             BUILD_REF=${{ github.sha }}
             BUILD_REPOSITORY=${{ github.repository }}
             BUILD_VERSION=edge
+
+      - name: 🧪 Smoke test container start
+        run: |
+          IMAGE_ID="$(docker image ls --format '{{.ID}}' | head -n 1)"
+          if [[ -z "${IMAGE_ID}" ]]; then
+            echo "::error ::No image built"
+            exit 1
+          fi
+          docker run -d --name cloudflared-smoke "${IMAGE_ID}"
+          sleep 5
+          docker ps --filter "name=cloudflared-smoke" --format '{{.Names}}'
+          docker logs cloudflared-smoke
+          docker rm -f cloudflared-smoke
 
   update_release_draft:
     name: Draft release
