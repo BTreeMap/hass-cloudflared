@@ -119,11 +119,15 @@ jobs:
       - name: 📦 Install test dependencies
         run: |
           uv venv .venv
-          . .venv/bin/activate
+          if [ -f .venv/bin/activate ]; then
+            source .venv/bin/activate
+          fi
           uv pip install pytest
       - name: 🧪 Run pytest
         run: |
-          . .venv/bin/activate
+          if [ -f .venv/bin/activate ]; then
+            source .venv/bin/activate
+          fi
           python -m pytest -q
 
   lint-markdown:
@@ -206,6 +210,7 @@ jobs:
         uses: docker/build-push-action@v6.18.0
         with:
           push: false
+          # Intentionally rely on image ID rather than tags for smoke testing.
           load: true
           context: ${{ needs.information.outputs.target }}
           file: ${{ needs.information.outputs.target }}/Dockerfile

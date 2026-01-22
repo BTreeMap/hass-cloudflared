@@ -20,7 +20,7 @@ RUN_SH = (
     / "run.sh"
 )
 
-BASHIO_REF = "9b30bab926bdba7b9fc0e0f2d2871ef14e17e8d6"
+BASHIO_REF = "9b30bab926bdba7b9fc0e0f2d2871ef14e17e8d6"  # Update when bashio changes
 BASHIO_TARBALL = f"https://codeload.github.com/hassio-addons/bashio/tar.gz/{BASHIO_REF}"
 BASHIO_TARBALL_SHA256 = "28a7b46f497fb8ff96beb61c4a572ea9cdc4e2d9be0fc2914b1e10091fce3568"
 
@@ -44,11 +44,12 @@ def _ensure_bashio_lib():
         raise RuntimeError("Bashio archive checksum mismatch")
     with tarfile.open(tar_path) as tar:
         cache_root_resolved = cache_root.resolve()
-        for member in tar.getmembers():
+        members = tar.getmembers()
+        for member in members:
             member_path = (cache_root / member.name).resolve()
             if not member_path.is_relative_to(cache_root_resolved):
                 raise RuntimeError("Unsafe path detected in bashio archive")
-        tar.extractall(cache_root)
+        tar.extractall(cache_root, members=members)
     return lib_dir
 
 
