@@ -41,9 +41,10 @@ def _ensure_bashio_lib():
     if digest != BASHIO_TARBALL_SHA256:
         raise RuntimeError("Bashio archive checksum mismatch")
     with tarfile.open(tar_path) as tar:
+        cache_root_resolved = cache_root.resolve()
         for member in tar.getmembers():
             member_path = (cache_root / member.name).resolve()
-            if not str(member_path).startswith(str(cache_root.resolve())):
+            if not member_path.is_relative_to(cache_root_resolved):
                 raise RuntimeError("Unsafe path detected in bashio archive")
         tar.extractall(cache_root)
     return lib_dir
