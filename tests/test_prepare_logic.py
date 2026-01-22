@@ -21,18 +21,24 @@ BASHIO_REF = "9b30bab926bdba7b9fc0e0f2d2871ef14e17e8d6"  # Update when bashio ch
 def _ensure_bashio_lib(tmp_path):
     bashio_dir = tmp_path / "bashio"
     if not bashio_dir.exists():
-        subprocess.run(
-            ["git", "clone", "--depth", "1", "https://github.com/hassio-addons/bashio", str(bashio_dir)],
-            check=True,
+        clone_result = subprocess.run(
+            ["git", "clone", "https://github.com/hassio-addons/bashio", str(bashio_dir)],
             capture_output=True,
             text=True,
         )
-        subprocess.run(
+        if clone_result.returncode != 0:
+            raise RuntimeError(
+                f"Failed to clone bashio: {clone_result.stdout}\n{clone_result.stderr}"
+            )
+        checkout_result = subprocess.run(
             ["git", "-C", str(bashio_dir), "checkout", BASHIO_REF],
-            check=True,
             capture_output=True,
             text=True,
         )
+        if checkout_result.returncode != 0:
+            raise RuntimeError(
+                f"Failed to checkout bashio ref: {checkout_result.stdout}\n{checkout_result.stderr}"
+            )
     return bashio_dir / "lib"
 
 
