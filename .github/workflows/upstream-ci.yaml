@@ -197,7 +197,7 @@ jobs:
           push: false
           context: ${{ needs.information.outputs.target }}
           file: ${{ needs.information.outputs.target }}/Dockerfile
-          tags: cloudflared-smoke:${{ github.sha }}-${{ matrix.architecture }}
+          tags: hass-cloudflared-smoke:${{ github.sha }}-${{ matrix.architecture }}
           cache-from: type=gha,scope=${{ needs.information.outputs.slug }}-${{ matrix.architecture }}
           cache-to: type=gha,mode=max,scope=${{ needs.information.outputs.slug }}-${{ matrix.architecture }}
           platforms: ${{ steps.flags.outputs.platform }}
@@ -212,7 +212,7 @@ jobs:
 
       - name: 🧪 Smoke test container start
         run: |
-          IMAGE_TAG="cloudflared-smoke:${{ github.sha }}-${{ matrix.architecture }}"
+          IMAGE_TAG="hass-cloudflared-smoke:${{ github.sha }}-${{ matrix.architecture }}"
           docker run -d --name cloudflared-smoke "${IMAGE_TAG}"
           sleep 5
           docker ps --filter "name=cloudflared-smoke" --format '{{.Names}}'

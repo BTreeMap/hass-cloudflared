@@ -8,11 +8,11 @@ def _load_config():
     return yaml.safe_load(config_path.read_text(encoding="utf-8"))
 
 
-def _collect_schema_keys(schema, prefix=""):
+def _collect_schema_paths(schema, prefix=""):
     keys = []
     for key, value in schema.items():
         if isinstance(value, dict):
-            keys.extend(_collect_schema_keys(value, f"{prefix}{key}."))
+            keys.extend(_collect_schema_paths(value, f"{prefix}{key}."))
         else:
             keys.append(f"{prefix}{key}")
     return keys
@@ -22,7 +22,7 @@ def test_all_options_have_schema_entries():
     config = _load_config()
     options = set(config["options"].keys())
     schema = config["schema"]
-    schema_keys = {entry.split(".", 1)[0] for entry in _collect_schema_keys(schema)}
+    schema_keys = {entry.split(".", 1)[0] for entry in _collect_schema_paths(schema)}
     missing = options - schema_keys
     assert not missing, f"Missing schema entries for options: {sorted(missing)}"
 
