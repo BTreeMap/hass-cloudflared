@@ -5,6 +5,7 @@ import hashlib
 import tarfile
 import tempfile
 import urllib.request
+import ssl
 from pathlib import Path
 from string import Template
 
@@ -33,9 +34,10 @@ def _ensure_bashio_lib():
         shutil.rmtree(cache_root)
     cache_root.mkdir(parents=True, exist_ok=True)
     tar_path = cache_root / "bashio.tar.gz"
-    with urllib.request.urlopen(BASHIO_TARBALL, timeout=30) as response, tar_path.open(
-        "wb"
-    ) as handle:
+    ssl_context = ssl.create_default_context()
+    with urllib.request.urlopen(
+        BASHIO_TARBALL, timeout=30, context=ssl_context
+    ) as response, tar_path.open("wb") as handle:
         handle.write(response.read())
     digest = hashlib.sha256(tar_path.read_bytes()).hexdigest()
     if digest != BASHIO_TARBALL_SHA256:
