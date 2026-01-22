@@ -52,32 +52,32 @@ jobs:
           fi
           echo "slug=$slug" >> $GITHUB_OUTPUT
 
-lint-addon:
-  name: Lint App (Add-on)
-  needs:
-    - information
-  runs-on: ubuntu-latest
-  steps:
-    - name: ⤵️ Check out code from GitHub
-      uses: actions/checkout@v4
+  lint-addon:
+    name: Lint App (Add-on)
+    needs:
+      - information
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⤵️ Check out code from GitHub
+        uses: actions/checkout@v4
 
-    - name: 🚀 Run Add-on Lint
-      id: addon_lint
-      continue-on-error: true
-      uses: homeassistant-apps/action-app-linter@8b7ff1c3cc0213503166a0319fc0c072176b494f # v3.1
-      with:
-        community: true
-        path: "./${{ needs.information.outputs.target }}"
+      - name: 🚀 Run Add-on Lint
+        id: addon_lint
+        continue-on-error: true
+        uses: homeassistant-apps/action-app-linter@8b7ff1c3cc0213503166a0319fc0c072176b494f # v3.1
+        with:
+          community: true
+          path: "./${{ needs.information.outputs.target }}"
 
-    - name: 🟨 Report non-blocking lint failure
-      if: steps.addon_lint.outcome != 'success'
-      run: |
-        {
-          echo "## 🟨 Add-on linter failed (non-blocking)"
-          echo ""
-          echo "This workflow continues because \`continue-on-error: true\` is enabled for the linter step."
-          echo "See the **\"🚀 Run Add-on Lint\"** step logs above for the exact failure output."
-        } >> "$GITHUB_STEP_SUMMARY"
+      - name: 🟨 Report non-blocking lint failure
+        if: steps.addon_lint.outcome != 'success'
+        run: |
+          {
+            echo "## 🟨 Add-on linter failed (non-blocking)"
+            echo ""
+            echo "This workflow continues because \`continue-on-error: true\` is enabled for the linter step."
+            echo "See the **\"🚀 Run Add-on Lint\"** step logs above for the exact failure output."
+          } >> "$GITHUB_STEP_SUMMARY"
 
   lint-hadolint:
     name: Hadolint
