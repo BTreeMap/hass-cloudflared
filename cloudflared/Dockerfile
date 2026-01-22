@@ -6,18 +6,8 @@ ENV S6_VERBOSITY="1"
 # Setup base
 ARG BUILD_ARCH="amd64"
 
-# renovate: datasource=repology depName=yq-go packageName=alpine_3_22/yq-go versioning=loose
+# renovate: datasource=repology depName=yq packageName=alpine_3_22/yq-go versioning=loose
 ARG YQ_VERSION="4.47.2-r3"
-# renovate: datasource=repology depName=curl packageName=alpine_3_22/curl versioning=loose
-ARG CURL_VERSION="8.14.1-r1"
-# renovate: datasource=repology depName=ca-certificates packageName=alpine_3_22/ca-certificates versioning=loose
-ARG CA_CERTIFICATES_VERSION="20250619-r0"
-# renovate: datasource=repology depName=tzdata packageName=alpine_3_22/tzdata versioning=loose
-ARG TZDATA_VERSION="2025b-r0"
-# renovate: datasource=repology depName=bash packageName=alpine_3_22/bash versioning=loose
-ARG BASH_VERSION="5.2.37-r0"
-# renovate: datasource=repology depName=jq packageName=alpine_3_22/jq versioning=loose
-ARG JQ_VERSION="1.8.0-r0"
 # renovate: datasource=github-releases depName=cloudflared packageName=cloudflare/cloudflared versioning=loose
 ARG CLOUDFLARED_VERSION="2026.1.1"
 
