@@ -14,6 +14,7 @@ hassio_api: true
 arch:
   - aarch64
   - amd64
+image: ghcr.io/btreemap/cloudflared
 map:
   - addon_config:rw
   - homeassistant_config
