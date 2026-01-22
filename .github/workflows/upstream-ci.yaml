@@ -118,7 +118,7 @@ jobs:
           python -m pip install uv
       - name: 📦 Install test dependencies
         run: |
-          uv pip install --system pytest pyyaml
+          uv pip install --system pytest
       - name: 🧪 Run pytest
         run: |
           python -m pytest -q

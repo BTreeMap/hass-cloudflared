@@ -18,7 +18,8 @@ RUN_SH = (
     / "run.sh"
 )
 
-BASHIO_TARBALL = "https://github.com/hassio-addons/bashio/archive/refs/heads/main.tar.gz"
+BASHIO_REF = "eb2f6f0f90c0a3e4a8d98d2ac0f2b1a1a8aa6d7d"
+BASHIO_TARBALL = f"https://github.com/hassio-addons/bashio/archive/{BASHIO_REF}.tar.gz"
 
 
 def _ensure_bashio_lib():
@@ -33,7 +34,7 @@ def _ensure_bashio_lib():
     with urllib.request.urlopen(BASHIO_TARBALL) as response, tar_path.open("wb") as handle:
         handle.write(response.read())
     with tarfile.open(tar_path) as tar:
-        tar.extractall(cache_root, filter="tar")
+        tar.extractall(cache_root, filter="data")
     return lib_dir
 
 
@@ -57,7 +58,6 @@ export SUPERVISOR_API="http://127.0.0.1"
 export SUPERVISOR_TOKEN=""
 export LOG_FORMAT=""
 export LOG_TIMESTAMP=""
-export LOG_LEVEL=0
 bashio::cache.exists() { return 1; }
 bashio::cache.set() { :; }
 bashio::cache.get() { return 1; }
