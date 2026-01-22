@@ -3,9 +3,8 @@ name = "hass-cloudflared-tests"
 version = "0.1.0"
 description = "Test tooling for hass-cloudflared"
 requires-python = ">=3.12"
-
-[project.optional-dependencies]
-test = [
+dependencies = [
+  "pyyaml==6.0.1",
   "pytest==9.0.2",
 ]
 

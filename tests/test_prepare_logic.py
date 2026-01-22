@@ -1,11 +1,6 @@
 import json
-import shutil
 import subprocess
-import hashlib
-import tarfile
 import tempfile
-import urllib.request
-import ssl
 from pathlib import Path
 from string import Template
 
@@ -21,45 +16,35 @@ RUN_SH = (
 )
 
 BASHIO_REF = "9b30bab926bdba7b9fc0e0f2d2871ef14e17e8d6"  # Update when bashio changes
-BASHIO_TARBALL = f"https://codeload.github.com/hassio-addons/bashio/tar.gz/{BASHIO_REF}"
-BASHIO_TARBALL_SHA256 = "28a7b46f497fb8ff96beb61c4a572ea9cdc4e2d9be0fc2914b1e10091fce3568"
 
 
-def _ensure_bashio_lib():
-    cache_root = Path(tempfile.gettempdir()) / "bashio-test-cache"
-    lib_dir = cache_root / f"bashio-{BASHIO_REF}" / "lib"
-    if lib_dir.exists():
-        return lib_dir
-    if cache_root.exists():
-        shutil.rmtree(cache_root)
-    cache_root.mkdir(parents=True, exist_ok=True)
-    tar_path = cache_root / "bashio.tar.gz"
-    ssl_context = ssl.create_default_context()
-    with urllib.request.urlopen(
-        BASHIO_TARBALL, timeout=30, context=ssl_context
-    ) as response, tar_path.open("wb") as handle:
-        handle.write(response.read())
-    digest = hashlib.sha256(tar_path.read_bytes()).hexdigest()
-    if digest != BASHIO_TARBALL_SHA256:
-        raise RuntimeError("Bashio archive checksum mismatch")
-    with tarfile.open(tar_path) as tar:
-        cache_root_resolved = cache_root.resolve()
-        members = tar.getmembers()
-        for member in members:
-            if ".." in Path(member.name).parts:
-                raise RuntimeError("Unsafe path detected in bashio archive")
-            member_path = (cache_root / member.name).resolve()
-            if not member_path.is_relative_to(cache_root_resolved):
-                raise RuntimeError("Unsafe path detected in bashio archive")
-        tar.extractall(cache_root, members=members, filter="data")
-    return lib_dir
+def _ensure_bashio_lib(tmp_path):
+    bashio_dir = tmp_path / "bashio"
+    if not bashio_dir.exists():
+        subprocess.run(
+            ["git", "clone", "--depth", "1", "https://github.com/hassio-addons/bashio", str(bashio_dir)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(bashio_dir), "checkout", BASHIO_REF],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    return bashio_dir / "lib"
 
 
 def _run_setup(config_payload):
-    lib_dir = _ensure_bashio_lib()
-    config_dir = Path(tempfile.mkdtemp())
-    data_dir = Path(tempfile.mkdtemp())
-    cache_dir = Path(tempfile.mkdtemp())
+    tmp_root = Path(tempfile.mkdtemp())
+    lib_dir = _ensure_bashio_lib(tmp_root)
+    config_dir = tmp_root / "config"
+    data_dir = tmp_root / "data"
+    cache_dir = tmp_root / "cache"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    data_dir.mkdir(parents=True, exist_ok=True)
+    cache_dir.mkdir(parents=True, exist_ok=True)
     config_json = config_dir / "config.json"
     config_json.write_text(json.dumps(config_payload), encoding="utf-8")
 
@@ -68,6 +53,7 @@ def _run_setup(config_payload):
 set -euo pipefail
 export CACHE_DIR="$cache_dir"
 export LOG_LEVEL=0
+export BASHIO_DIR="$bashio_dir"
 source "$bashio_lib_dir/bashio.sh"
 bashio::addon.config() { cat "$config_json"; }
 DAL_ROOT_OVERRIDE="$dal_root"
@@ -85,6 +71,7 @@ setupDigitalAssetLinks
 """
     ).substitute(
         cache_dir=cache_dir,
+        bashio_dir=lib_dir.parent,
         bashio_lib_dir=lib_dir,
         config_json=config_json,
         dal_root=data_dir,
