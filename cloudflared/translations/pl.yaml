@@ -44,5 +44,9 @@ configuration:
     description: >-
       Po ustawieniu wszystkie inne opcje zostaną zignorowane. Użyj tej opcji, jeśli skonfigurujesz
       tunel z Cloudflare Dashboard.
+  digital_asset_links_sites:
+    name: Witryny Digital Asset Links
+    description: >-
+      Lista źródeł HTTPS dla wygenerowanego pliku assetlinks.json.
 network:
   36500/tcp: Metrics Web Interface (36500/tcp)

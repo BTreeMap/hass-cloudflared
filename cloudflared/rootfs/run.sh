@@ -6,7 +6,15 @@
 # ==============================================================================
 declare config_file="/tmp/config.json"
 declare certificate="/data/cert.pem"
+declare dal_root="/data/digital-asset-links"
+declare dal_http_port="36555"
 declare -a options
+
+# Start Digital Asset Links server if configured
+if bashio::fs.file_exists "${dal_root}/www/.well-known/assetlinks.json"; then
+    bashio::log.info "Starting Digital Asset Links server..."
+    busybox httpd -f -p "127.0.0.1:${dal_http_port}" -h "${dal_root}/www" -c "${dal_root}/httpd.conf" &
+fi
 
 # Set common cloudflared tunnel options
 options+=(--no-autoupdate)

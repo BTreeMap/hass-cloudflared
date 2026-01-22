@@ -45,5 +45,9 @@ configuration:
       Alle andere opties wordt genegeerd wanneer deze optie is ingeschakeld.
       Gebruik deze optie als je de tunel met het Cloudflare Dashboard
       instelt.
+  digital_asset_links_sites:
+    name: Digital Asset Links-sites
+    description: >-
+      Lijst met HTTPS-origins voor het gegenereerde assetlinks.json-bestand.
 network:
   36500/tcp: Webinterface voor statistieken (36500/tcp)
