@@ -197,6 +197,7 @@ jobs:
           push: false
           context: ${{ needs.information.outputs.target }}
           file: ${{ needs.information.outputs.target }}/Dockerfile
+          tags: cloudflared-smoke:${{ github.sha }}-${{ matrix.architecture }}
           cache-from: type=gha,scope=${{ needs.information.outputs.slug }}-${{ matrix.architecture }}
           cache-to: type=gha,mode=max,scope=${{ needs.information.outputs.slug }}-${{ matrix.architecture }}
           platforms: ${{ steps.flags.outputs.platform }}
@@ -211,12 +212,8 @@ jobs:
 
       - name: 🧪 Smoke test container start
         run: |
-          IMAGE_ID="$(docker image ls --format '{{.ID}}' | head -n 1)"
-          if [[ -z "${IMAGE_ID}" ]]; then
-            echo "::error ::No image built"
-            exit 1
-          fi
-          docker run -d --name cloudflared-smoke "${IMAGE_ID}"
+          IMAGE_TAG="cloudflared-smoke:${{ github.sha }}-${{ matrix.architecture }}"
+          docker run -d --name cloudflared-smoke "${IMAGE_TAG}"
           sleep 5
           docker ps --filter "name=cloudflared-smoke" --format '{{.Names}}'
           docker logs cloudflared-smoke
