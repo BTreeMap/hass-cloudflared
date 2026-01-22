@@ -143,7 +143,7 @@ setupDigitalAssetLinks() {
     local host_port
     local host
     local port
-    local -a deduped_sites=()
+    local -a validated_sites=()
 
     for site in "${raw_sites[@]}"; do
         if ! [[ ${site} =~ ^https:// ]]; then
@@ -168,10 +168,10 @@ setupDigitalAssetLinks() {
             bashio::exit.nok "'${site}' in 'digital_asset_links_sites' does not contain a valid hostname."
         fi
 
-        deduped_sites+=("${site}")
+        validated_sites+=("${site}")
     done
 
-    mapfile -t digital_asset_links_sites < <(printf '%s\n' "${deduped_sites[@]}" | LC_ALL=C sort -u)
+    mapfile -t digital_asset_links_sites < <(printf '%s\n' "${validated_sites[@]}" | LC_ALL=C sort -u)
 
     if [[ ${#digital_asset_links_sites[@]} -eq 0 ]]; then
         rm -rf "${DAL_ROOT}"
@@ -471,14 +471,14 @@ main() {
         checkConnectivity
     fi
 
-    setupDigitalAssetLinks
-
     # Run service with tunnel token without creating config
     if bashio::config.has_value 'tunnel_token'; then
         bashio::log.info "Using Cloudflare Remote Management Tunnel"
         bashio::log.info "All app (add-on) configuration options except tunnel_token and digital_asset_links_sites will be ignored."
         bashio::exit.ok
     fi
+
+    setupDigitalAssetLinks
 
     validateConfigAndSetVars
 
