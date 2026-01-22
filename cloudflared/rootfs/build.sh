@@ -8,7 +8,13 @@
 set -eux
 
 # yq is to avoid depending on Home Assistant API on startup
-apk add --no-cache yq-go="${YQ_VERSION}"
+apk add --no-cache \
+    bash="${BASH_VERSION}" \
+    ca-certificates="${CA_CERTIFICATES_VERSION}" \
+    curl="${CURL_VERSION}" \
+    jq="${JQ_VERSION}" \
+    tzdata="${TZDATA_VERSION}" \
+    yq-go="${YQ_VERSION}"
 
 # Adapt the architecture to the cloudflared specific names if needed
 # see HA archs: https://developers.home-assistant.io/docs/add-ons/configuration/#:~:text=the%20add%2Don.-,arch,-list
@@ -23,7 +29,7 @@ case "${BUILD_ARCH}" in
 esac
 
 # Download the cloudflared bin
-wget -q -O /usr/bin/cloudflared "https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-${cloudflared_arch}"
+curl -fsSL -o /usr/bin/cloudflared "https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-${cloudflared_arch}"
 
 # Make the downloaded bin executeable
 chmod +x /usr/bin/cloudflared
