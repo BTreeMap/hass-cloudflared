@@ -11,7 +11,7 @@
 # Globals
 # ------------------------------------------------------------------------------
 readonly VALID_HOSTNAME_REGEX="^(([a-z0-9äöüß]|[a-z0-9äöüß][a-z0-9äöüß\\-]*[a-z0-9äöüß])\\.)*([a-z0-9]|[a-z0-9][a-z0-9\\-]*[a-z0-9])$"
-readonly DAL_ROOT="/data/digital-asset-links"
+readonly DAL_ROOT="${DAL_ROOT_OVERRIDE:-/data/digital-asset-links}"
 readonly DAL_HTTP_PORT="36555"
 declare -a digital_asset_links_sites
 
@@ -494,4 +494,6 @@ main() {
 
     bashio::log.info "Finished setting up the Cloudflare Tunnel"
 }
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi
