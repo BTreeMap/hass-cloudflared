@@ -118,9 +118,12 @@ jobs:
           python -m pip install uv
       - name: 📦 Install test dependencies
         run: |
-          uv pip install --system pytest
+          uv venv .venv
+          . .venv/bin/activate
+          uv pip install pytest
       - name: 🧪 Run pytest
         run: |
+          . .venv/bin/activate
           python -m pytest -q
 
   lint-markdown:

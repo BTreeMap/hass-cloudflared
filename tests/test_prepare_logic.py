@@ -18,13 +18,13 @@ RUN_SH = (
     / "run.sh"
 )
 
-BASHIO_REF = "eb2f6f0f90c0a3e4a8d98d2ac0f2b1a1a8aa6d7d"
-BASHIO_TARBALL = f"https://github.com/hassio-addons/bashio/archive/{BASHIO_REF}.tar.gz"
+BASHIO_REF = "9b30bab926bdba7b9fc0e0f2d2871ef14e17e8d6"
+BASHIO_TARBALL = f"https://codeload.github.com/hassio-addons/bashio/tar.gz/{BASHIO_REF}"
 
 
 def _ensure_bashio_lib():
     cache_root = Path(tempfile.gettempdir()) / "bashio-test-cache"
-    lib_dir = cache_root / "bashio-main" / "lib"
+    lib_dir = cache_root / f"bashio-{BASHIO_REF}" / "lib"
     if lib_dir.exists():
         return lib_dir
     if cache_root.exists():
