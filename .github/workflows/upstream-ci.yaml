@@ -42,7 +42,7 @@ jobs:
         uses: actions/checkout@v6
       - name: 🚀 Run app (add-on) information action
         id: information
-        uses: homeassistant-apps/action-app-information@b895bf87f1fe6f3250341ee94b5317360a3b2451 # v2
+        uses: homeassistant-apps/action-app-information@v2
       - name: 🚀 Process possible slug override
         id: override
         run: |
@@ -64,7 +64,7 @@ jobs:
       - name: 🚀 Run Add-on Lint
         id: addon_lint
         continue-on-error: true
-        uses: homeassistant-apps/action-app-linter@8b7ff1c3cc0213503166a0319fc0c072176b494f # v3.1
+        uses: homeassistant-apps/action-app-linter@v3.1
         with:
           community: true
           path: "./${{ needs.information.outputs.target }}"
@@ -88,7 +88,7 @@ jobs:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v6
       - name: 🚀 Run Hadolint
-        uses: brpaz/hadolint-action@c27bd9edc1e95eed30474db8f295ff5807ebca14 # v1.5.0
+        uses: brpaz/hadolint-action@v1.5.0
         with:
           dockerfile: "./${{ needs.information.outputs.target }}/Dockerfile"
 
@@ -109,9 +109,16 @@ jobs:
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v6
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 📦 Install uv
+        run: |
+          python -m pip install uv
       - name: 📦 Install test dependencies
         run: |
-          python -m pip install pytest pyyaml
+          uv pip install --system pytest pyyaml
       - name: 🧪 Run pytest
         run: |
           python -m pytest -q
@@ -123,7 +130,7 @@ jobs:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v6
       - name: 🚀 Run mdl
-        uses: actionshub/markdownlint@6c82ff529253530dfbf75c37570876c52692835f # v3.1.4
+        uses: actionshub/markdownlint@v3.1.4
 
   lint-shellcheck:
     name: Shellcheck
@@ -132,7 +139,7 @@ jobs:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v6
       - name: 🚀 Run Shellcheck
-        uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # 2.0.0
+        uses: ludeeus/action-shellcheck@v2.0.0
         env:
           SHELLCHECK_OPTS: -s bash
 
@@ -143,7 +150,7 @@ jobs:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v6
       - name: 🚀 Run YAMLLint
-        uses: frenck/action-yamllint@34b4bbcaeabedcfefad6adea8c5bbc42af0e2d47 # v1.5
+        uses: frenck/action-yamllint@v1.5
 
   lint-prettier:
     name: Prettier
@@ -152,7 +159,7 @@ jobs:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v6
       - name: 🚀 Run Prettier
-        uses: creyD/prettier_action@8c18391fdc98ed0d884c6345f03975edac71b8f0 # v4.6
+        uses: creyD/prettier_action@v4.6
         with:
           prettier_options: --write **/*.{json,js,md,yaml}
 
@@ -176,9 +183,9 @@ jobs:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v6
       - name: 🏗 Set up QEMU
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+        uses: docker/setup-qemu-action@v3.7.0
       - name: 🏗 Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+        uses: docker/setup-buildx-action@v3.12.0
       - name: ℹ️ Compose build flags
         id: flags
         run: |
@@ -192,12 +199,13 @@ jobs:
             exit 1
           fi
       - name: 🚀 Build
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        id: build
+        uses: docker/build-push-action@v6.18.0
         with:
           push: false
+          load: true
           context: ${{ needs.information.outputs.target }}
           file: ${{ needs.information.outputs.target }}/Dockerfile
-          tags: hass-cloudflared-smoke:${{ github.sha }}-${{ matrix.architecture }}
           cache-from: type=gha,scope=${{ needs.information.outputs.slug }}-${{ matrix.architecture }}
           cache-to: type=gha,mode=max,scope=${{ needs.information.outputs.slug }}-${{ matrix.architecture }}
           platforms: ${{ steps.flags.outputs.platform }}
@@ -212,8 +220,7 @@ jobs:
 
       - name: 🧪 Smoke test container start
         run: |
-          IMAGE_TAG="hass-cloudflared-smoke:${{ github.sha }}-${{ matrix.architecture }}"
-          docker run -d --name cloudflared-smoke "${IMAGE_TAG}"
+          docker run -d --name cloudflared-smoke "${{ steps.build.outputs.imageid }}"
           sleep 5
           docker ps --filter "name=cloudflared-smoke" --format '{{.Names}}'
           docker logs cloudflared-smoke
@@ -227,6 +234,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 🚀 Run Release Drafter
-        uses: homeassistant-apps/action-release-drafter@7b4a6142442312ed667d70a152d37b3676a97388 # v6.1.1
+        uses: homeassistant-apps/action-release-drafter@v6.1.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

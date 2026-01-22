@@ -1,9 +1,11 @@
 import json
+import shutil
 import subprocess
+import tarfile
 import tempfile
+import urllib.request
 from pathlib import Path
-
-import yaml
+from string import Template
 
 RUN_SH = (
     Path(__file__).resolve().parents[1]
@@ -16,138 +18,61 @@ RUN_SH = (
     / "run.sh"
 )
 
+BASHIO_TARBALL = "https://github.com/hassio-addons/bashio/archive/refs/heads/main.tar.gz"
 
-def _render_config(path, payload):
-    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+def _ensure_bashio_lib():
+    cache_root = Path(tempfile.gettempdir()) / "bashio-test-cache"
+    lib_dir = cache_root / "bashio-main" / "lib"
+    if lib_dir.exists():
+        return lib_dir
+    if cache_root.exists():
+        shutil.rmtree(cache_root)
+    cache_root.mkdir(parents=True, exist_ok=True)
+    tar_path = cache_root / "bashio.tar.gz"
+    with urllib.request.urlopen(BASHIO_TARBALL) as response, tar_path.open("wb") as handle:
+        handle.write(response.read())
+    with tarfile.open(tar_path) as tar:
+        tar.extractall(cache_root, filter="tar")
+    return lib_dir
 
 
 def _run_setup(config_payload):
+    lib_dir = _ensure_bashio_lib()
     config_dir = Path(tempfile.mkdtemp())
     data_dir = Path(tempfile.mkdtemp())
-    config_path = config_dir / "config.yaml"
-    _render_config(config_path, config_payload)
+    cache_dir = Path(tempfile.mkdtemp())
+    config_json = config_dir / "config.json"
+    config_json.write_text(json.dumps(config_payload), encoding="utf-8")
 
-    script = r"""
+    script = Template(
+        r"""
 set -euo pipefail
-__BASHIO_EXIT_OK=0
-__BASHIO_EXIT_NOK=1
-
-DAL_ROOT_OVERRIDE="{dal_root}"
-
-bashio::config.exists() {
-  return 1
-}
-
-bashio::config.has_value() {
-  python - "$@" <<'PY'
-import sys, yaml
-config = yaml.safe_load(open("{config_path}", "r", encoding="utf-8"))
-key = sys.argv[1]
-value = config.get(key)
-if value is None or value == "":
-    raise SystemExit(1)
-if isinstance(value, list) and not value:
-    raise SystemExit(1)
-raise SystemExit(0)
-PY
-}
-
-bashio::config.is_empty() {
-  python - "$@" <<'PY'
-import sys, yaml
-config = yaml.safe_load(open("{config_path}", "r", encoding="utf-8"))
-key = sys.argv[1]
-value = config.get(key)
-if value is None or value == "":
-    raise SystemExit(0)
-if isinstance(value, list) and not value:
-    raise SystemExit(0)
-raise SystemExit(1)
-PY
-}
-
-bashio::config.true() {
-  python - "$@" <<'PY'
-import sys, yaml
-config = yaml.safe_load(open("{config_path}", "r", encoding="utf-8"))
-key = sys.argv[1]
-raise SystemExit(0 if config.get(key) is True else 1)
-PY
-}
-
-bashio::addon.config() { echo "{config_path}"; }
-
-bashio::jq() {
-  python - "$@" <<'PY'
-import json, sys, yaml
-source = sys.argv[1]
-query = sys.argv[2]
-if source.endswith(".json"):
-    data = json.load(open(source, "r", encoding="utf-8"))
-elif source.endswith(".yaml"):
-    data = yaml.safe_load(open(source, "r", encoding="utf-8"))
-else:
-    data = json.loads(source)
-
-def print_json(value):
-    print(json.dumps(value))
-
-if query == ".digital_asset_links_sites[]?":
-    for entry in data.get("digital_asset_links_sites", []) or []:
-        print(entry)
-    raise SystemExit(0)
-
-if query == ".":
-    print_json(data)
-    raise SystemExit(0)
-
-if ". +=" in query:
-    if "relation" in query and "target" in query:
-        site = query.split('"site": "')[1].split('"', 1)[0]
-        entry = {
-            "relation": ["delegate_permission/common.get_login_creds"],
-            "target": {"namespace": "web", "site": site},
-        }
-        if not isinstance(data, list):
-            data = []
-        data.append(entry)
-        print_json(data)
-        raise SystemExit(0)
-
-if " + " in query:
-    _, addition = query.split(" + ", 1)
-    add_value = json.loads(addition)
-    if not isinstance(data, list):
-        data = []
-    data.extend(add_value)
-    print_json(data)
-    raise SystemExit(0)
-
-print_json(data)
-PY
-}
-
-bashio::var.is_empty() { [[ -z "$1" ]]; }
-bashio::var.has_value() { [[ -n "$1" ]]; }
-bashio::var.true() { [[ "$1" == "true" ]]; }
-bashio::var.false() { [[ "$1" == "false" ]]; }
-
-bashio::fs.file_exists() { [[ -f "$1" ]]; }
-bashio::log.trace() { :; }
-bashio::log.info() { :; }
-bashio::log.debug() { :; }
-bashio::log.notice() { :; }
-bashio::log.warning() { :; }
-bashio::log.error() { :; }
-bashio::exit.nok() { exit 1; }
-bashio::exit.ok() { exit 0; }
-
-source "{run_sh}"
+export CACHE_DIR="$cache_dir"
+export LOG_LEVEL=0
+source "$bashio_lib_dir/bashio.sh"
+bashio::addon.config() { cat "$config_json"; }
+DAL_ROOT_OVERRIDE="$dal_root"
+export SUPERVISOR_API="http://127.0.0.1"
+export SUPERVISOR_TOKEN=""
+export LOG_FORMAT=""
+export LOG_TIMESTAMP=""
+export LOG_LEVEL=0
+bashio::cache.exists() { return 1; }
+bashio::cache.set() { :; }
+bashio::cache.get() { return 1; }
+bashio::cache.flush_all() { :; }
+bashio::api.supervisor() { return 1; }
+source "$run_sh"
 setupDigitalAssetLinks
 """
-    script = script.replace("{config_path}", str(config_path))
-    script = script.replace("{dal_root}", str(data_dir))
-    script = script.replace("{run_sh}", str(RUN_SH))
+    ).substitute(
+        cache_dir=cache_dir,
+        bashio_lib_dir=lib_dir,
+        config_json=config_json,
+        dal_root=data_dir,
+        run_sh=RUN_SH,
+    )
     result = subprocess.run(
         script, shell=True, text=True, capture_output=True, executable="/bin/bash"
     )
@@ -188,6 +113,26 @@ def test_rejects_port_out_of_range():
     assert result.returncode != 0
 
 
+def test_rejects_invalid_hostname():
+    result, _ = _run_setup(
+        {
+            "digital_asset_links_sites": ["https://bad_host"],
+            "external_hostname": "ha.example.com",
+        }
+    )
+    assert result.returncode != 0
+
+
+def test_rejects_non_numeric_port():
+    result, _ = _run_setup(
+        {
+            "digital_asset_links_sites": ["https://example.com:abc"],
+            "external_hostname": "ha.example.com",
+        }
+    )
+    assert result.returncode != 0
+
+
 def test_dedupes_and_sorts():
     result, data_dir = _run_setup(
         {
@@ -217,3 +162,14 @@ def test_accepts_valid_port():
     assetlinks = Path(data_dir) / "www" / ".well-known" / "assetlinks.json"
     data = _read_assetlinks(assetlinks)
     assert data[0]["target"]["site"] == "https://example.com:8443"
+
+
+def test_empty_list_removes_output():
+    result, data_dir = _run_setup(
+        {
+            "digital_asset_links_sites": [],
+            "external_hostname": "ha.example.com",
+        }
+    )
+    assert result.returncode == 0
+    assert not (Path(data_dir) / "www").exists()
