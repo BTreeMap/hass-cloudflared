@@ -129,10 +129,8 @@ setupDigitalAssetLinks() {
     bashio::log.trace "${FUNCNAME[0]}"
     digital_asset_links_sites=()
 
-    local raw_sites_output
     local -a raw_sites=()
-    raw_sites_output=$(bashio::jq "$(bashio::addon.config)" ".digital_asset_links_sites[]?")
-    readarray -t raw_sites <<<"${raw_sites_output}"
+    mapfile -t raw_sites < <(bashio::jq "$(bashio::addon.config)" ".digital_asset_links_sites[]?")
 
     if [[ ${#raw_sites[@]} -eq 0 ]]; then
         rm -rf "${DAL_ROOT}"
@@ -159,7 +157,7 @@ setupDigitalAssetLinks() {
         port=""
         if [[ ${host_port} == *:* ]]; then
             port="${host_port#*:}"
-            if [[ -z ${port} || ! ${port} =~ ^[0-9]+$ || ${port} -lt 1 || ${port} -gt 65535 ]]; then
+            if [[ -z ${port} || ! ${port} =~ ^[0-9]+$ ]] || ((port < 1 || port > 65535)); then
                 bashio::exit.nok "'${site}' in 'digital_asset_links_sites' includes an invalid port."
             fi
         fi
@@ -384,7 +382,7 @@ createConfig() {
         # Check if catch all service is defined
         if bashio::config.has_value 'catch_all_service'; then
 
-            bashio::log.info "Runing with Catch all Service"
+            bashio::log.info "Running with Catch all Service"
             # Setting catch all service to defined URL
             config=$(bashio::jq "${config}" ".\"ingress\" += [{\"service\": \"$(bashio::config 'catch_all_service')\"}]")
         else

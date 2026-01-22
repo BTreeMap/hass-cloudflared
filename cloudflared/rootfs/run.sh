@@ -15,6 +15,7 @@ if bashio::fs.file_exists "${dal_root}/www/.well-known/assetlinks.json"; then
     bashio::log.info "Starting Digital Asset Links server..."
     busybox httpd -f -p "127.0.0.1:${dal_http_port}" -h "${dal_root}/www" -c "${dal_root}/httpd.conf" &
     dal_pid=$!
+    sleep 0.2
     if ! kill -0 "${dal_pid}" 2>/dev/null; then
         bashio::log.error "Digital Asset Links server failed to start."
     fi
