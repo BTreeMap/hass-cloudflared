@@ -1,5 +1,5 @@
 {
-  "name": "BTreeMap Home Assistant Add-ons",
+  "name": "Cloudflare Tunnel - multiset HA Add-ons",
   "url": "https://github.com/BTreeMap/hass-cloudflared",
   "maintainer": "Joe Fang <hass-cloudflared@oss.joefang.org>"
 }
