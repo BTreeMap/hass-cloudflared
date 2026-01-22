@@ -1,56 +1,31 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
-  ],
+  "extends": ["config:recommended"],
   "rebaseWhen": "behind-base-branch",
   "dependencyDashboard": true,
-  "labels": [
-    "dependencies",
-    "no-stale"
-  ],
+  "labels": ["dependencies", "no-stale"],
   "commitMessagePrefix": "⬆️",
   "commitMessageTopic": "{{depName}}",
-  "enabledManagers": [
-    "dockerfile",
-    "github-actions"
-  ],
+  "enabledManagers": ["dockerfile", "github-actions"],
   "packageRules": [
     {
       "groupName": "App (Add-on) base image",
-      "matchDatasources": [
-        "docker"
-      ]
+      "matchDatasources": ["docker"]
     },
     {
       "groupName": "App (Add-on) base image",
-      "matchDatasources": [
-        "docker"
-      ],
-      "matchUpdateTypes": [
-        "minor",
-        "patch"
-      ],
+      "matchDatasources": ["docker"],
+      "matchUpdateTypes": ["minor", "patch"],
       "automerge": true
     },
     {
-      "matchDatasources": [
-        "github-releases"
-      ],
-      "matchUpdateTypes": [
-        "minor",
-        "patch"
-      ],
+      "matchDatasources": ["github-releases"],
+      "matchUpdateTypes": ["minor", "patch"],
       "automerge": true
     },
     {
-      "matchManagers": [
-        "github-actions"
-      ],
-      "matchUpdateTypes": [
-        "minor",
-        "patch"
-      ],
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch"],
       "automerge": true
     }
   ]
