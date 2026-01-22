@@ -5,7 +5,7 @@
   "labels": ["dependencies", "no-stale"],
   "commitMessagePrefix": "⬆️",
   "commitMessageTopic": "{{depName}}",
-  "enabledManagers": ["customManagers", "dockerfile", "github-actions"],
+  "enabledManagers": ["custom", "dockerfile", "github-actions"],
   "customManagers": [
     {
       "customType": "regex",
