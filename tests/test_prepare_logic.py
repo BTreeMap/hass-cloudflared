@@ -1,6 +1,7 @@
 import json
 import shutil
 import subprocess
+import hashlib
 import tarfile
 import tempfile
 import urllib.request
@@ -20,6 +21,7 @@ RUN_SH = (
 
 BASHIO_REF = "9b30bab926bdba7b9fc0e0f2d2871ef14e17e8d6"
 BASHIO_TARBALL = f"https://codeload.github.com/hassio-addons/bashio/tar.gz/{BASHIO_REF}"
+BASHIO_TARBALL_SHA256 = "28a7b46f497fb8ff96beb61c4a572ea9cdc4e2d9be0fc2914b1e10091fce3568"
 
 
 def _ensure_bashio_lib():
@@ -31,10 +33,19 @@ def _ensure_bashio_lib():
         shutil.rmtree(cache_root)
     cache_root.mkdir(parents=True, exist_ok=True)
     tar_path = cache_root / "bashio.tar.gz"
-    with urllib.request.urlopen(BASHIO_TARBALL) as response, tar_path.open("wb") as handle:
+    with urllib.request.urlopen(BASHIO_TARBALL, timeout=30) as response, tar_path.open(
+        "wb"
+    ) as handle:
         handle.write(response.read())
+    digest = hashlib.sha256(tar_path.read_bytes()).hexdigest()
+    if digest != BASHIO_TARBALL_SHA256:
+        raise RuntimeError("Bashio archive checksum mismatch")
     with tarfile.open(tar_path) as tar:
-        tar.extractall(cache_root, filter="data")
+        for member in tar.getmembers():
+            member_path = (cache_root / member.name).resolve()
+            if not str(member_path).startswith(str(cache_root.resolve())):
+                raise RuntimeError("Unsafe path detected in bashio archive")
+        tar.extractall(cache_root)
     return lib_dir
 
 
