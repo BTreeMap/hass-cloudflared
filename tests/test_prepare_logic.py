@@ -46,6 +46,8 @@ def _ensure_bashio_lib():
         cache_root_resolved = cache_root.resolve()
         members = tar.getmembers()
         for member in members:
+            if ".." in Path(member.name).parts:
+                raise RuntimeError("Unsafe path detected in bashio archive")
             member_path = (cache_root / member.name).resolve()
             if not member_path.is_relative_to(cache_root_resolved):
                 raise RuntimeError("Unsafe path detected in bashio archive")

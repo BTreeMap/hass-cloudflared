@@ -119,16 +119,10 @@ jobs:
       - name: 📦 Install test dependencies
         run: |
           uv venv .venv
-          if [ -f .venv/bin/activate ]; then
-            source .venv/bin/activate
-          fi
           uv pip install pytest
       - name: 🧪 Run pytest
         run: |
-          if [ -f .venv/bin/activate ]; then
-            source .venv/bin/activate
-          fi
-          python -m pytest -q
+          uv run --python .venv/bin/python pytest -q
 
   lint-markdown:
     name: MarkdownLint
