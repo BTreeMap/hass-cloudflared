@@ -8,8 +8,9 @@
 set -eux
 
 # yq is to avoid depending on Home Assistant API on startup
-# busybox-extras provides httpd for serving Digital Asset Links files
-apk add --no-cache yq-go="${YQ_VERSION}" busybox-extras="${BUSYBOX_EXTRAS_VERSION}"
+# Upgrade busybox and install busybox-extras (provides httpd for serving Digital Asset Links files)
+# Both packages must be the same version to avoid conflicts
+apk add --no-cache yq-go="${YQ_VERSION}" busybox="${BUSYBOX_VERSION}" busybox-extras="${BUSYBOX_VERSION}"
 
 # Adapt the architecture to the cloudflared specific names if needed
 # see HA archs: https://developers.home-assistant.io/docs/add-ons/configuration/#:~:text=the%20add%2Don.-,arch,-list

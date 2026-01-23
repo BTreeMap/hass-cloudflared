@@ -6,10 +6,10 @@ ENV S6_VERBOSITY="1"
 # Setup base
 ARG BUILD_ARCH="amd64"
 
-# renovate: datasource=repology depName=yq packageName=alpine_3_23/yq-go versioning=loose
+# renovate: datasource=repology depName=yq packageName=alpine_3_22/yq-go versioning=loose
 ARG YQ_VERSION="4.47.2-r3"
-# renovate: datasource=repology depName=busybox-extras packageName=alpine_3_23/busybox versioning=loose
-ARG BUSYBOX_EXTRAS_VERSION="1.37.0-r30"
+# renovate: datasource=repology depName=busybox packageName=alpine_3_22/busybox versioning=loose
+ARG BUSYBOX_VERSION="1.37.0-r20"
 # renovate: datasource=github-releases depName=cloudflared packageName=cloudflare/cloudflared versioning=loose
 ARG CLOUDFLARED_VERSION="2026.1.1"
 
