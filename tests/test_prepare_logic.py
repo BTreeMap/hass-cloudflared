@@ -1,4 +1,5 @@
 import json
+import stat
 import subprocess
 import tempfile
 from pathlib import Path
@@ -185,8 +186,8 @@ def test_docroot_permissions():
     assert result.returncode == 0
     docroot = Path(data_dir) / "www"
     mode = docroot.stat().st_mode
-    assert mode & 0o022 == 0
-    assert mode & 0o007 == 0
+    assert mode & stat.S_IRWXG == 0
+    assert mode & stat.S_IRWXO == 0
 
 
 def test_empty_list_removes_output():
