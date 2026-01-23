@@ -24,6 +24,11 @@
       "automerge": true
     },
     {
+      "matchDatasources": ["repology"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
       "matchManagers": ["github-actions"],
       "matchUpdateTypes": ["minor", "patch"],
       "automerge": true
