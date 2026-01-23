@@ -1,4 +1,5 @@
 import json
+import stat
 import subprocess
 import tempfile
 from pathlib import Path
@@ -56,6 +57,8 @@ def _run_setup(config_payload):
 
     script = Template(
         r"""
+# Ensure predictable permissions when the script creates docroot files.
+umask 022
 set -euo pipefail
 export CACHE_DIR="$cache_dir"
 export LOG_LEVEL=0
@@ -172,6 +175,20 @@ def test_accepts_valid_port():
     assetlinks = Path(data_dir) / "www" / ".well-known" / "assetlinks.json"
     data = _read_assetlinks(assetlinks)
     assert data[0]["target"]["site"] == "https://example.com:8443"
+
+
+def test_docroot_permissions():
+    result, data_dir = _run_setup(
+        {
+            "digital_asset_links_sites": ["https://example.com"],
+            "external_hostname": "ha.example.com",
+        }
+    )
+    assert result.returncode == 0
+    docroot = Path(data_dir) / "www"
+    mode = docroot.stat().st_mode
+    assert mode & stat.S_IRWXG == 0
+    assert mode & stat.S_IRWXO == 0
 
 
 def test_empty_list_removes_output():

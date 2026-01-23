@@ -12,6 +12,7 @@
 # ------------------------------------------------------------------------------
 readonly VALID_HOSTNAME_REGEX="^(([a-z0-9äöüß]|[a-z0-9äöüß][a-z0-9äöüß\\-]*[a-z0-9äöüß])\\.)*([a-z0-9]|[a-z0-9][a-z0-9\\-]*[a-z0-9])$"
 readonly DAL_ROOT="${DAL_ROOT_OVERRIDE:-/data/digital-asset-links}"
+readonly DOCROOT="${DAL_ROOT}/www"
 readonly DAL_HTTP_PORT="36555"
 declare -a digital_asset_links_sites
 
@@ -178,15 +179,14 @@ setupDigitalAssetLinks() {
 
     bashio::log.debug "digital_asset_links_sites: ${digital_asset_links_sites[*]}"
 
-    local dal_www="${DAL_ROOT}/www"
-    local dal_wellknown="${dal_www}/.well-known"
+    local dal_wellknown="${DOCROOT}/.well-known"
     local dal_file="${dal_wellknown}/assetlinks.json"
 
-    rm -rf "${dal_www}"
+    rm -rf "${DOCROOT}"
     mkdir -p "${dal_wellknown}"
 
     cat >"${DAL_ROOT}/httpd.conf" <<EOF
-H:${dal_www}
+H:${DOCROOT}
 .json:application/json
 EOF
 
@@ -196,6 +196,20 @@ EOF
     done
 
     bashio::jq "${assetlinks}" "." >"${dal_file}"
+
+    if ! chmod -R u=rX,go= "${DOCROOT}"; then
+        if [[ $(id -u) -eq 0 ]]; then
+            bashio::exit.nok "Failed to set permissions for Digital Asset Links docroot."
+        fi
+        bashio::log.warning "Failed to set permissions for Digital Asset Links docroot."
+    fi
+
+    if ! chown -R nobody "${DOCROOT}"; then
+        if [[ $(id -u) -eq 0 ]]; then
+            bashio::exit.nok "Failed to set ownership for Digital Asset Links docroot."
+        fi
+        bashio::log.warning "Failed to set ownership for Digital Asset Links docroot."
+    fi
 }
 
 # ------------------------------------------------------------------------------
