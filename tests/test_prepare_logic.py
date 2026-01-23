@@ -44,6 +44,7 @@ def _ensure_bashio_lib(tmp_path):
 
 
 def _run_setup(config_payload, log_level=0):
+    log_level = int(log_level)
     tmp_root = Path(tempfile.mkdtemp())
     lib_dir = _ensure_bashio_lib(tmp_root)
     config_dir = tmp_root / "config"

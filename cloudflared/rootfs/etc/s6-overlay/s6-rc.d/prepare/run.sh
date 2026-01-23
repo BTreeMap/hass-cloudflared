@@ -191,10 +191,10 @@ H:${DOCROOT}
 EOF
 
     local assetlinks="[]"
-    local site_json
     for site in "${digital_asset_links_sites[@]}"; do
-        site_json=$(jq -Rn --arg site "${site}" '$site')
-        assetlinks=$(bashio::jq "${assetlinks}" ". += [{\"relation\": [\"delegate_permission/common.get_login_creds\"], \"target\": {\"namespace\": \"web\", \"site\": ${site_json}}}]")
+        assetlinks=$(jq -c --arg site "${site}" \
+            '. + [{"relation": ["delegate_permission/common.get_login_creds"], "target": {"namespace": "web", "site": $site}}]' \
+            <<<"${assetlinks}")
     done
 
     bashio::jq "${assetlinks}" "." >"${dal_file}"
