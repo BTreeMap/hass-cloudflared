@@ -21,6 +21,7 @@ map:
 options:
   external_hostname: ""
   additional_hosts: []
+  digital_asset_links_sites: []
 ports:
   36500/tcp: null
 schema:
@@ -37,3 +38,5 @@ schema:
   run_parameters:
     - match(^(--edge-bind-address|--edge-ip-version|--grace-period|--ha-connections|--logfile|--loglevel|--pidfile|--protocol|--region|--retries|--tag)=.*$)?
   log_level: list(trace|debug|info|notice|warning|error|fatal)?
+  digital_asset_links_sites:
+    - str

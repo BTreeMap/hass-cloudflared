@@ -82,6 +82,7 @@ advanced config can be achieved using the remote tunnel setup.
 - [`post_quantum`](#option-post_quantum)
 - [`run_parameters`](#option-run_parameters)
 - [`log_level`](#option-log_level)
+- [`digital_asset_links_sites`](#option-digital_asset_links_sites)
 
 ### Overview: App (Add-on) configuration
 
@@ -96,6 +97,8 @@ additional_hosts:
     service: http://192.168.1.1
   - hostname: website.example.com
     service: http://192.168.1.3:8080
+digital_asset_links_sites:
+  - https://ha.example.com
 ```
 
 **Note**: _This is just an example, don't copy and paste it! Create your own!_
@@ -292,6 +295,31 @@ Please note that each level automatically includes log messages from a
 more severe level, e.g., `debug` also shows `info` messages. By default,
 the `log_level` is set to `info`, which is the recommended setting unless
 you are troubleshooting.
+
+### Option: `digital_asset_links_sites`
+
+Provide a list of HTTPS origins to include in the Digital Asset Links file
+served by the add-on. The add-on serves the generated file from
+`/.well-known/assetlinks.json` using a local BusyBox HTTP server and routes
+that path to the local server for locally managed tunnels.
+
+```yaml
+digital_asset_links_sites:
+  - https://ha.example.com
+  - https://vault.example.com:8443
+```
+
+**Note**: _Each entry must be an `https://` origin only (no paths). Duplicate
+entries are de-duplicated and the file is generated in stable order._
+
+#### Cloudflare Zero Trust routing
+
+- **Locally managed tunnels**: the add-on routes `/.well-known/*` to the local
+  Digital Asset Links server and forwards all other requests to the existing
+  services.
+- **Remotely managed tunnels (token)**: add an equivalent path-based rule in
+  the Cloudflare dashboard that routes `/.well-known/*` to
+  `http://127.0.0.1:36555`, since routing is managed remotely.
 
 ## Home Assistant configuration
 

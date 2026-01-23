@@ -8,13 +8,19 @@
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
+# Globals
+# ------------------------------------------------------------------------------
+readonly VALID_HOSTNAME_REGEX="^(([a-z0-9äöüß]|[a-z0-9äöüß][a-z0-9äöüß\\-]*[a-z0-9äöüß])\\.)*([a-z0-9]|[a-z0-9][a-z0-9\\-]*[a-z0-9])$"
+readonly DAL_ROOT="${DAL_ROOT_OVERRIDE:-/data/digital-asset-links}"
+readonly DAL_HTTP_PORT="36555"
+declare -a digital_asset_links_sites
+
+# ------------------------------------------------------------------------------
 # Validates configuration and sets global variables used in the script
 # ------------------------------------------------------------------------------
 validateConfigAndSetVars() {
     bashio::log.trace "${FUNCNAME[0]}"
     bashio::log.info "Validating app (add-on) configuration..."
-
-    local validHostnameRegex="^(([a-z0-9äöüß]|[a-z0-9äöüß][a-z0-9äöüß\-]*[a-z0-9äöüß])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])$"
 
     # Check for minimum configuration options
     if
@@ -29,7 +35,7 @@ validateConfigAndSetVars() {
     # Set and validate 'external_hostname'
     if bashio::config.has_value 'external_hostname'; then
         external_hostname="$(bashio::config 'external_hostname')"
-        if ! [[ ${external_hostname} =~ ${validHostnameRegex} ]]; then
+        if ! [[ ${external_hostname} =~ ${VALID_HOSTNAME_REGEX} ]]; then
             bashio::exit.nok "'${external_hostname}' is not a valid hostname. Please make sure not to include the protocol (e.g. 'https://') nor the port (e.g. ':8123') and only use lowercase characters in the 'external_hostname'."
         fi
     else
@@ -56,7 +62,7 @@ validateConfigAndSetVars() {
                 bashio::exit.nok "'hostname' in 'additional_hosts' for service ${service} is empty, please enter a valid String"
             fi
             # Check if hostname of 'additional_host' includes a valid hostname
-            if ! [[ ${hostname} =~ ${validHostnameRegex} ]]; then
+            if ! [[ ${hostname} =~ ${VALID_HOSTNAME_REGEX} ]]; then
                 bashio::exit.nok "'${hostname}' in 'additional_hosts' is not a valid hostname. Please make sure not to include the protocol (e.g. 'https://') nor the port (e.g. ':8123') and only use lowercase characters in the 'hostname'."
             fi
             if bashio::var.is_empty "${service}"; then
@@ -114,6 +120,82 @@ validateConfigAndSetVars() {
         tunnel_name="homeassistant"
     fi
     bashio::log.debug "tunnel_name: ${tunnel_name}"
+}
+
+# ------------------------------------------------------------------------------
+# Generates Digital Asset Links file and configuration
+# ------------------------------------------------------------------------------
+setupDigitalAssetLinks() {
+    bashio::log.trace "${FUNCNAME[0]}"
+    digital_asset_links_sites=()
+
+    local -a raw_sites=()
+    mapfile -t raw_sites < <(bashio::jq "$(bashio::addon.config)" ".digital_asset_links_sites[]?")
+
+    if [[ ${#raw_sites[@]} -eq 0 ]]; then
+        rm -rf "${DAL_ROOT}"
+        return
+    fi
+
+    local site
+    local host_port
+    local host
+    local port
+    local -a validated_sites=()
+
+    for site in "${raw_sites[@]}"; do
+        if ! [[ ${site} =~ ^https:// ]]; then
+            bashio::exit.nok "'${site}' in 'digital_asset_links_sites' must start with 'https://'."
+        fi
+
+        host_port="${site#https://}"
+        if [[ ${host_port} == *"/"* || ${host_port} == *"?"* || ${host_port} == *"#"* ]]; then
+            bashio::exit.nok "'${site}' in 'digital_asset_links_sites' must be an HTTPS origin without a path."
+        fi
+
+        host="${host_port%%:*}"
+        port=""
+        if [[ ${host_port} == *:* ]]; then
+            port="${host_port#*:}"
+            if [[ -z ${port} || ! ${port} =~ ^[0-9]+$ ]] || ((port < 1 || port > 65535)); then
+                bashio::exit.nok "'${site}' in 'digital_asset_links_sites' includes an invalid port."
+            fi
+        fi
+
+        if ! [[ ${host} =~ ${VALID_HOSTNAME_REGEX} ]]; then
+            bashio::exit.nok "'${site}' in 'digital_asset_links_sites' does not contain a valid hostname."
+        fi
+
+        validated_sites+=("${site}")
+    done
+
+    mapfile -t digital_asset_links_sites < <(printf '%s\n' "${validated_sites[@]}" | LC_ALL=C sort -u)
+
+    if [[ ${#digital_asset_links_sites[@]} -eq 0 ]]; then
+        rm -rf "${DAL_ROOT}"
+        return
+    fi
+
+    bashio::log.debug "digital_asset_links_sites: ${digital_asset_links_sites[*]}"
+
+    local dal_www="${DAL_ROOT}/www"
+    local dal_wellknown="${dal_www}/.well-known"
+    local dal_file="${dal_wellknown}/assetlinks.json"
+
+    rm -rf "${dal_www}"
+    mkdir -p "${dal_wellknown}"
+
+    cat >"${DAL_ROOT}/httpd.conf" <<EOF
+H:${dal_www}
+.json:application/json
+EOF
+
+    local assetlinks="[]"
+    for site in "${digital_asset_links_sites[@]}"; do
+        assetlinks=$(bashio::jq "${assetlinks}" ". += [{\"relation\": [\"delegate_permission/common.get_login_creds\"], \"target\": {\"namespace\": \"web\", \"site\": \"${site}\"}}]")
+    done
+
+    bashio::jq "${assetlinks}" "." >"${dal_file}"
 }
 
 # ------------------------------------------------------------------------------
@@ -263,6 +345,12 @@ createConfig() {
     # Add tunnel information
     config=$(bashio::jq "{\"tunnel\":\"${tunnel_uuid}\"}" ".")
     config=$(bashio::jq "${config}" ".\"credentials-file\" += \"${data_path}/tunnel.json\"")
+    config=$(bashio::jq "${config}" ".\"ingress\" = []")
+
+    if [[ ${#digital_asset_links_sites[@]} -gt 0 ]]; then
+        bashio::log.info "Adding Digital Asset Links ingress rule"
+        config=$(bashio::jq "${config}" ".\"ingress\" += [{\"path\": \"/.well-known/*\", \"service\": \"http://127.0.0.1:${DAL_HTTP_PORT}\"}]")
+    fi
 
     # Add Service for Home Assistant if 'external_hostname' is set
     if bashio::config.has_value 'external_hostname'; then
@@ -294,7 +382,7 @@ createConfig() {
         # Check if catch all service is defined
         if bashio::config.has_value 'catch_all_service'; then
 
-            bashio::log.info "Runing with Catch all Service"
+            bashio::log.info "Running with Catch all Service"
             # Setting catch all service to defined URL
             config=$(bashio::jq "${config}" ".\"ingress\" += [{\"service\": \"$(bashio::config 'catch_all_service')\"}]")
         else
@@ -384,9 +472,11 @@ main() {
     # Run service with tunnel token without creating config
     if bashio::config.has_value 'tunnel_token'; then
         bashio::log.info "Using Cloudflare Remote Management Tunnel"
-        bashio::log.info "All app (add-on) configuration options except tunnel_token will be ignored."
+        bashio::log.info "All app (add-on) configuration options except tunnel_token and digital_asset_links_sites will be ignored."
         bashio::exit.ok
     fi
+
+    setupDigitalAssetLinks
 
     validateConfigAndSetVars
 
@@ -404,4 +494,6 @@ main() {
 
     bashio::log.info "Finished setting up the Cloudflare Tunnel"
 }
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi

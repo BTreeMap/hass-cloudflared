@@ -103,6 +103,27 @@ jobs:
           shopt -s globstar
           cat **/*.json | jq '.'
 
+  test-python:
+    name: Python Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⤵️ Check out code from GitHub
+        uses: actions/checkout@v6
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: ⚡ Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.26"
+      - name: 🧰 Install test dependencies
+        run: |
+          uv sync --frozen
+      - name: 🧪 Run pytest
+        run: |
+          uv run pytest -q
+
   lint-markdown:
     name: MarkdownLint
     runs-on: ubuntu-latest
@@ -150,6 +171,7 @@ jobs:
       - lint-addon
       - lint-hadolint
       - lint-json
+      - test-python
       - lint-markdown
       - lint-prettier
       - lint-shellcheck
@@ -162,9 +184,9 @@ jobs:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v6
       - name: 🏗 Set up QEMU
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+        uses: docker/setup-qemu-action@v3
       - name: 🏗 Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+        uses: docker/setup-buildx-action@v3
       - name: ℹ️ Compose build flags
         id: flags
         run: |
@@ -178,9 +200,12 @@ jobs:
             exit 1
           fi
       - name: 🚀 Build
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        id: build
+        uses: docker/build-push-action@v6
         with:
           push: false
+          # Intentionally rely on image ID rather than tags for smoke testing.
+          load: true
           context: ${{ needs.information.outputs.target }}
           file: ${{ needs.information.outputs.target }}/Dockerfile
           cache-from: type=gha,scope=${{ needs.information.outputs.slug }}-${{ matrix.architecture }}
@@ -194,6 +219,14 @@ jobs:
             BUILD_REF=${{ github.sha }}
             BUILD_REPOSITORY=${{ github.repository }}
             BUILD_VERSION=edge
+
+      - name: 🧪 Smoke test container start
+        run: |
+          docker run -d --name cloudflared-smoke "${{ steps.build.outputs.imageid }}"
+          sleep 5
+          docker ps --filter "name=cloudflared-smoke" --format '{{.Names}}'
+          docker logs cloudflared-smoke
+          docker rm -f cloudflared-smoke
 
   update_release_draft:
     name: Draft release
