@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: hass-cloudflared-tests
+Version: 0.1.0
+Summary: Test tooling for hass-cloudflared
+Requires-Python: >=3.12
+License-File: LICENSE.md
+Requires-Dist: pyyaml==6.0.1
+Requires-Dist: pytest==9.0.2
+Dynamic: license-file
