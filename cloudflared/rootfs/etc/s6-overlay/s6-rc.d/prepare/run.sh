@@ -197,7 +197,7 @@ EOF
             <<<"${assetlinks}")
     done
 
-    bashio::jq "${assetlinks}" "." >"${dal_file}"
+    jq "." <<<"${assetlinks}" >"${dal_file}"
 
     if ! chmod -R u=rX,go= "${DOCROOT}"; then
         if [[ $(id -u) -eq 0 ]]; then
