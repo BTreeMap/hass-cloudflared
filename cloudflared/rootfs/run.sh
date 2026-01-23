@@ -6,14 +6,16 @@
 # ==============================================================================
 declare config_file="/tmp/config.json"
 declare certificate="/data/cert.pem"
-declare dal_root="/data/digital-asset-links"
+declare dal_root="${DAL_ROOT_OVERRIDE:-/data/digital-asset-links}"
+declare DOCROOT="${dal_root}/www"
 declare dal_http_port="36555"
 declare -a options
 
 # Start Digital Asset Links server if configured
-if bashio::fs.file_exists "${dal_root}/www/.well-known/assetlinks.json"; then
+if bashio::fs.file_exists "${DOCROOT}/.well-known/assetlinks.json"; then
     bashio::log.info "Starting Digital Asset Links server..."
-    busybox-extras httpd -f -p "127.0.0.1:${dal_http_port}" -h "${dal_root}/www" -c "${dal_root}/httpd.conf" &
+    s6-setuidgid nobody \
+        busybox-extras httpd -f -p "127.0.0.1:${dal_http_port}" -h "${DOCROOT}" -c "${dal_root}/httpd.conf" &
     dal_pid=$!
     sleep 0.2
     if ! kill -0 "${dal_pid}" 2>/dev/null; then
