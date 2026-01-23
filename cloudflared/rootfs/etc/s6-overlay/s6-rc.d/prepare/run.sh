@@ -145,22 +145,19 @@ setupDigitalAssetLinks() {
     local -a validated_sites=()
 
     for site in "${raw_sites[@]}"; do
+        host_port="${site#*://}"
+        host_port="${host_port#//}"
+        host_port="${host_port%%[/?#]*}"
+        host="${host_port%%:*}"
+
         if ! [[ ${site} =~ ^https:// ]]; then
             bashio::log.warning "'${site}' in 'digital_asset_links_sites' should start with 'https://'. Continuing with original value."
-            host_port="${site#*://}"
-            host_port="${host_port#//}"
-            host="${host_port%%[/?#]*}"
-            host="${host%%:*}"
-            if ! [[ ${host} =~ ${VALID_HOSTNAME_REGEX} ]]; then
-                bashio::log.warning "'${site}' in 'digital_asset_links_sites' does not contain a valid hostname. Continuing with original value."
-            fi
         else
             host_port="${site#https://}"
             if [[ ${host_port} == *"/"* || ${host_port} == *"?"* || ${host_port} == *"#"* ]]; then
                 bashio::log.warning "'${site}' in 'digital_asset_links_sites' should be an HTTPS origin without a path. Continuing with original value."
             fi
 
-            host="${host_port%%:*}"
             port=""
             if [[ ${host_port} == *:* ]]; then
                 port="${host_port#*:}"
@@ -168,10 +165,9 @@ setupDigitalAssetLinks() {
                     bashio::log.warning "'${site}' in 'digital_asset_links_sites' includes an invalid port. Continuing with original value."
                 fi
             fi
-
-            if ! [[ ${host} =~ ${VALID_HOSTNAME_REGEX} ]]; then
-                bashio::log.warning "'${site}' in 'digital_asset_links_sites' does not contain a valid hostname. Continuing with original value."
-            fi
+        fi
+        if ! [[ ${host} =~ ${VALID_HOSTNAME_REGEX} ]]; then
+            bashio::log.warning "'${site}' in 'digital_asset_links_sites' does not contain a valid hostname. Continuing with original value."
         fi
 
         validated_sites+=("${site}")
