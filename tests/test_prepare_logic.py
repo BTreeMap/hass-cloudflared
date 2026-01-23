@@ -108,7 +108,7 @@ def test_warns_non_https():
     )
     assert result.returncode == 0
     assert (
-        "'http://example.com' in 'digital_asset_links_sites' should start with 'https://'. Continuing with original value."
+        "'http://example.com' in 'digital_asset_links_sites' does not match the expected https://hostname[:port] pattern. Continuing with original value."
         in result.stdout
     )
     assetlinks = Path(data_dir) / "www" / ".well-known" / "assetlinks.json"
@@ -126,7 +126,7 @@ def test_warns_path():
     )
     assert result.returncode == 0
     assert (
-        "'https://example.com/path' in 'digital_asset_links_sites' should be an HTTPS origin without a path. Continuing with original value."
+        "'https://example.com/path' in 'digital_asset_links_sites' does not match the expected https://hostname[:port] pattern. Continuing with original value."
         in result.stdout
     )
     assetlinks = Path(data_dir) / "www" / ".well-known" / "assetlinks.json"
@@ -144,8 +144,8 @@ def test_warns_port_out_of_range():
     )
     assert result.returncode == 0
     assert (
-        "'https://example.com:99999' in 'digital_asset_links_sites' includes an invalid port. Continuing with original value."
-        in result.stdout
+        "'https://example.com:99999' in 'digital_asset_links_sites' does not match the expected https://hostname[:port] pattern. Continuing with original value."
+        not in result.stdout
     )
     assetlinks = Path(data_dir) / "www" / ".well-known" / "assetlinks.json"
     data = _read_assetlinks(assetlinks)
@@ -162,8 +162,8 @@ def test_warns_invalid_hostname():
     )
     assert result.returncode == 0
     assert (
-        "'https://bad_host' in 'digital_asset_links_sites' does not contain a valid hostname. Continuing with original value."
-        in result.stdout
+        "'https://bad_host' in 'digital_asset_links_sites' does not match the expected https://hostname[:port] pattern. Continuing with original value."
+        not in result.stdout
     )
     assetlinks = Path(data_dir) / "www" / ".well-known" / "assetlinks.json"
     data = _read_assetlinks(assetlinks)
@@ -180,8 +180,8 @@ def test_warns_non_numeric_port():
     )
     assert result.returncode == 0
     assert (
-        "'https://example.com:abc' in 'digital_asset_links_sites' includes an invalid port. Continuing with original value."
-        in result.stdout
+        "'https://example.com:abc' in 'digital_asset_links_sites' does not match the expected https://hostname[:port] pattern. Continuing with original value."
+        not in result.stdout
     )
     assetlinks = Path(data_dir) / "www" / ".well-known" / "assetlinks.json"
     data = _read_assetlinks(assetlinks)

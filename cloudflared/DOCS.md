@@ -309,10 +309,10 @@ digital_asset_links_sites:
   - https://vault.example.com:8443
 ```
 
-**Note**: _Entries should be `https://` origins only (no paths). Invalid entries
-are still included as provided, but the add-on logs a warning to help detect
-mistakes. Duplicate entries are de-duplicated and the file is generated in
-stable order._
+**Note**: _Entries should be `https://` origins only (no paths). Entries that do
+not resemble `https://hostname[:port]` are still included as provided, but the
+add-on logs a warning to help detect mistakes. Duplicate entries are
+de-duplicated and the file is generated in stable order._
 
 #### Cloudflare Zero Trust routing
 
