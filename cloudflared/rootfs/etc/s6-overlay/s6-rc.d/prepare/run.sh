@@ -147,24 +147,24 @@ setupDigitalAssetLinks() {
     for site in "${raw_sites[@]}"; do
         if ! [[ ${site} =~ ^https:// ]]; then
             bashio::log.warning "'${site}' in 'digital_asset_links_sites' should start with 'https://'. Continuing with original value."
-        fi
-
-        host_port="${site#https://}"
-        if [[ ${host_port} == *"/"* || ${host_port} == *"?"* || ${host_port} == *"#"* ]]; then
-            bashio::log.warning "'${site}' in 'digital_asset_links_sites' should be an HTTPS origin without a path. Continuing with original value."
-        fi
-
-        host="${host_port%%:*}"
-        port=""
-        if [[ ${host_port} == *:* ]]; then
-            port="${host_port#*:}"
-            if [[ -z ${port} || ! ${port} =~ ^[0-9]+$ ]] || ((port < 1 || port > 65535)); then
-                bashio::log.warning "'${site}' in 'digital_asset_links_sites' includes an invalid port. Continuing with original value."
+        else
+            host_port="${site#https://}"
+            if [[ ${host_port} == *"/"* || ${host_port} == *"?"* || ${host_port} == *"#"* ]]; then
+                bashio::log.warning "'${site}' in 'digital_asset_links_sites' should be an HTTPS origin without a path. Continuing with original value."
             fi
-        fi
 
-        if ! [[ ${host} =~ ${VALID_HOSTNAME_REGEX} ]]; then
-            bashio::log.warning "'${site}' in 'digital_asset_links_sites' does not contain a valid hostname. Continuing with original value."
+            host="${host_port%%:*}"
+            port=""
+            if [[ ${host_port} == *:* ]]; then
+                port="${host_port#*:}"
+                if [[ -z ${port} || ! ${port} =~ ^[0-9]+$ ]] || ((port < 1 || port > 65535)); then
+                    bashio::log.warning "'${site}' in 'digital_asset_links_sites' includes an invalid port. Continuing with original value."
+                fi
+            fi
+
+            if ! [[ ${host} =~ ${VALID_HOSTNAME_REGEX} ]]; then
+                bashio::log.warning "'${site}' in 'digital_asset_links_sites' does not contain a valid hostname. Continuing with original value."
+            fi
         fi
 
         validated_sites+=("${site}")
