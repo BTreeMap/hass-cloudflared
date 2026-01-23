@@ -69,7 +69,7 @@ bashio::addon.config() { cat "$config_json"; }
 DAL_ROOT_OVERRIDE="$dal_root"
 export SUPERVISOR_API="http://127.0.0.1"
 export SUPERVISOR_TOKEN=""
-export LOG_FORMAT="{MESSAGE}"
+export LOG_FORMAT=""
 export LOG_TIMESTAMP=""
 bashio::cache.exists() { return 1; }
 bashio::cache.set() { :; }

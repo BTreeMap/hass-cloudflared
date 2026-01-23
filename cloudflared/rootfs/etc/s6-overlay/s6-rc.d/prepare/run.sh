@@ -147,6 +147,13 @@ setupDigitalAssetLinks() {
     for site in "${raw_sites[@]}"; do
         if ! [[ ${site} =~ ^https:// ]]; then
             bashio::log.warning "'${site}' in 'digital_asset_links_sites' should start with 'https://'. Continuing with original value."
+            host_port="${site#*://}"
+            host_port="${host_port#//}"
+            host="${host_port%%[/?#]*}"
+            host="${host%%:*}"
+            if ! [[ ${host} =~ ${VALID_HOSTNAME_REGEX} ]]; then
+                bashio::log.warning "'${site}' in 'digital_asset_links_sites' does not contain a valid hostname. Continuing with original value."
+            fi
         else
             host_port="${site#https://}"
             if [[ ${host_port} == *"/"* || ${host_port} == *"?"* || ${host_port} == *"#"* ]]; then
