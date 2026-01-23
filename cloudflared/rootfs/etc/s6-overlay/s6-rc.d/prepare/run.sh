@@ -469,14 +469,14 @@ main() {
         checkConnectivity
     fi
 
+    setupDigitalAssetLinks
+
     # Run service with tunnel token without creating config
     if bashio::config.has_value 'tunnel_token'; then
         bashio::log.info "Using Cloudflare Remote Management Tunnel"
         bashio::log.info "All app (add-on) configuration options except tunnel_token and digital_asset_links_sites will be ignored."
         bashio::exit.ok
     fi
-
-    setupDigitalAssetLinks
 
     validateConfigAndSetVars
 
