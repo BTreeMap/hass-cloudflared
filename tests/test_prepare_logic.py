@@ -57,6 +57,7 @@ def _run_setup(config_payload):
 
     script = Template(
         r"""
+# Ensure predictable permissions when the script creates docroot files.
 umask 022
 set -euo pipefail
 export CACHE_DIR="$cache_dir"
