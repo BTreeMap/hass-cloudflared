@@ -198,10 +198,16 @@ EOF
     bashio::jq "${assetlinks}" "." >"${dal_file}"
 
     if ! chmod -R u=rX,go= "${DOCROOT}"; then
+        if [[ $(id -u) -eq 0 ]]; then
+            bashio::exit.nok "Failed to set permissions for Digital Asset Links docroot."
+        fi
         bashio::log.warning "Failed to set permissions for Digital Asset Links docroot."
     fi
 
-    if ! chown -R nobody:nobody "${DOCROOT}"; then
+    if ! chown -R nobody "${DOCROOT}"; then
+        if [[ $(id -u) -eq 0 ]]; then
+            bashio::exit.nok "Failed to set ownership for Digital Asset Links docroot."
+        fi
         bashio::log.warning "Failed to set ownership for Digital Asset Links docroot."
     fi
 }
