@@ -139,32 +139,11 @@ setupDigitalAssetLinks() {
     fi
 
     local site
-    local host_port
-    local host
-    local port
     local -a validated_sites=()
 
     for site in "${raw_sites[@]}"; do
-        if ! [[ ${site} =~ ^https:// ]]; then
-            bashio::exit.nok "'${site}' in 'digital_asset_links_sites' must start with 'https://'."
-        fi
-
-        host_port="${site#https://}"
-        if [[ ${host_port} == *"/"* || ${host_port} == *"?"* || ${host_port} == *"#"* ]]; then
-            bashio::exit.nok "'${site}' in 'digital_asset_links_sites' must be an HTTPS origin without a path."
-        fi
-
-        host="${host_port%%:*}"
-        port=""
-        if [[ ${host_port} == *:* ]]; then
-            port="${host_port#*:}"
-            if [[ -z ${port} || ! ${port} =~ ^[0-9]+$ ]] || ((port < 1 || port > 65535)); then
-                bashio::exit.nok "'${site}' in 'digital_asset_links_sites' includes an invalid port."
-            fi
-        fi
-
-        if ! [[ ${host} =~ ${VALID_HOSTNAME_REGEX} ]]; then
-            bashio::exit.nok "'${site}' in 'digital_asset_links_sites' does not contain a valid hostname."
+        if ! [[ ${site} =~ ^https://[^/?#]+$ ]]; then
+            bashio::log.warning "'${site}' in 'digital_asset_links_sites' does not match the expected https://hostname[:port] pattern. Continuing with original value."
         fi
 
         validated_sites+=("${site}")

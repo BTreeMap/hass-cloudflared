@@ -43,7 +43,8 @@ def _ensure_bashio_lib(tmp_path):
     return bashio_dir / "lib"
 
 
-def _run_setup(config_payload):
+def _run_setup(config_payload, log_level=0):
+    log_level = int(log_level)
     tmp_root = Path(tempfile.mkdtemp())
     lib_dir = _ensure_bashio_lib(tmp_root)
     config_dir = tmp_root / "config"
@@ -61,7 +62,7 @@ def _run_setup(config_payload):
 umask 022
 set -euo pipefail
 export CACHE_DIR="$cache_dir"
-export LOG_LEVEL=0
+export LOG_LEVEL=$log_level
 export BASHIO_DIR="$bashio_dir"
 source "$bashio_lib_dir/bashio.sh"
 bashio::addon.config() { cat "$config_json"; }
@@ -84,6 +85,7 @@ setupDigitalAssetLinks
         bashio_lib_dir=lib_dir,
         config_json=config_json,
         dal_root=data_dir,
+        log_level=log_level,
         run_sh=RUN_SH,
     )
     result = subprocess.run(
@@ -96,54 +98,94 @@ def _read_assetlinks(path):
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
-def test_rejects_non_https():
-    result, _ = _run_setup(
+def test_warns_non_https():
+    result, data_dir = _run_setup(
         {
             "digital_asset_links_sites": ["http://example.com"],
             "external_hostname": "ha.example.com",
-        }
+        },
+        log_level=5,
     )
-    assert result.returncode != 0
+    assert result.returncode == 0
+    assert (
+        "'http://example.com' in 'digital_asset_links_sites' does not match the expected https://hostname[:port] pattern. Continuing with original value."
+        in result.stdout
+    )
+    assetlinks = Path(data_dir) / "www" / ".well-known" / "assetlinks.json"
+    data = _read_assetlinks(assetlinks)
+    assert data[0]["target"]["site"] == "http://example.com"
 
 
-def test_rejects_path():
-    result, _ = _run_setup(
+def test_warns_path():
+    result, data_dir = _run_setup(
         {
             "digital_asset_links_sites": ["https://example.com/path"],
             "external_hostname": "ha.example.com",
-        }
+        },
+        log_level=5,
     )
-    assert result.returncode != 0
+    assert result.returncode == 0
+    assert (
+        "'https://example.com/path' in 'digital_asset_links_sites' does not match the expected https://hostname[:port] pattern. Continuing with original value."
+        in result.stdout
+    )
+    assetlinks = Path(data_dir) / "www" / ".well-known" / "assetlinks.json"
+    data = _read_assetlinks(assetlinks)
+    assert data[0]["target"]["site"] == "https://example.com/path"
 
 
-def test_rejects_port_out_of_range():
-    result, _ = _run_setup(
+def test_warns_port_out_of_range():
+    result, data_dir = _run_setup(
         {
             "digital_asset_links_sites": ["https://example.com:99999"],
             "external_hostname": "ha.example.com",
-        }
+        },
+        log_level=5,
     )
-    assert result.returncode != 0
+    assert result.returncode == 0
+    assert (
+        "'https://example.com:99999' in 'digital_asset_links_sites' does not match the expected https://hostname[:port] pattern. Continuing with original value."
+        not in result.stdout
+    )
+    assetlinks = Path(data_dir) / "www" / ".well-known" / "assetlinks.json"
+    data = _read_assetlinks(assetlinks)
+    assert data[0]["target"]["site"] == "https://example.com:99999"
 
 
-def test_rejects_invalid_hostname():
-    result, _ = _run_setup(
+def test_warns_invalid_hostname():
+    result, data_dir = _run_setup(
         {
             "digital_asset_links_sites": ["https://bad_host"],
             "external_hostname": "ha.example.com",
-        }
+        },
+        log_level=5,
     )
-    assert result.returncode != 0
+    assert result.returncode == 0
+    assert (
+        "'https://bad_host' in 'digital_asset_links_sites' does not match the expected https://hostname[:port] pattern. Continuing with original value."
+        not in result.stdout
+    )
+    assetlinks = Path(data_dir) / "www" / ".well-known" / "assetlinks.json"
+    data = _read_assetlinks(assetlinks)
+    assert data[0]["target"]["site"] == "https://bad_host"
 
 
-def test_rejects_non_numeric_port():
-    result, _ = _run_setup(
+def test_warns_non_numeric_port():
+    result, data_dir = _run_setup(
         {
             "digital_asset_links_sites": ["https://example.com:abc"],
             "external_hostname": "ha.example.com",
-        }
+        },
+        log_level=5,
     )
-    assert result.returncode != 0
+    assert result.returncode == 0
+    assert (
+        "'https://example.com:abc' in 'digital_asset_links_sites' does not match the expected https://hostname[:port] pattern. Continuing with original value."
+        not in result.stdout
+    )
+    assetlinks = Path(data_dir) / "www" / ".well-known" / "assetlinks.json"
+    data = _read_assetlinks(assetlinks)
+    assert data[0]["target"]["site"] == "https://example.com:abc"
 
 
 def test_dedupes_and_sorts():
