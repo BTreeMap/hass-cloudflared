@@ -44,10 +44,6 @@
       "matchDatasources": [
         "repology"
       ],
-      "matchUpdateTypes": [
-        "minor",
-        "patch"
-      ],
       "automerge": true
     },
     {
