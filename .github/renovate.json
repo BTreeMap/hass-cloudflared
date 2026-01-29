@@ -1,25 +1,12 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
+  "extends": ["config:recommended", "customManagers:dockerfileVersions"],
   "rebaseWhen": "behind-base-branch",
   "dependencyDashboard": true,
   "labels": ["dependencies", "no-stale"],
   "commitMessagePrefix": "⬆️",
   "commitMessageTopic": "{{depName}}",
   "enabledManagers": ["dockerfile", "github-actions", "custom.regex"],
-  "customManagers": [
-    {
-      "customType": "regex",
-      "description": "Update *_VERSION ARGs in Dockerfiles using inline renovate directives",
-      "managerFilePatterns": ["/(^|\\/)(Dockerfile|Containerfile)$/"],
-      "matchStrings": [
-        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+(?:depName=(?<depName>\\S+)\\s+)?(?:packageName=(?<packageName>\\S+)\\s+)?(?:versioning=(?<versioning>\\S+)\\s+)?\\s*\\n\\s*ARG\\s+\\w+_VERSION=\"?(?<currentValue>[^\"\\n]+)\"?"
-      ],
-      "depNameTemplate": "{{#if depName}}{{depName}}{{else}}{{packageName}}{{/if}}",
-      "packageNameTemplate": "{{#if packageName}}{{packageName}}{{else}}{{depName}}{{/if}}",
-      "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}"
-    }
-  ],
   "packageRules": [
     {
       "groupName": "App (Add-on) base image",
