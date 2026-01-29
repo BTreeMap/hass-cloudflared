@@ -6,7 +6,6 @@
   "labels": ["dependencies", "no-stale"],
   "commitMessagePrefix": "⬆️",
   "commitMessageTopic": "{{depName}}",
-  "enabledManagers": ["dockerfile", "github-actions", "custom.regex"],
   "packageRules": [
     {
       "groupName": "App (Add-on) base image",
