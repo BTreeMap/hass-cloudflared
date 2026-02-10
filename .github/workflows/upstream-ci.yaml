@@ -116,7 +116,7 @@ jobs:
       - name: ⚡ Set up uv
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.10.1"
+          version: "0.10.2"
       - name: 🧰 Install test dependencies
         run: |
           uv sync --frozen
