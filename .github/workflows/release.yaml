@@ -1,0 +1,144 @@
+---
+name: Release
+
+# Publish the version in config.yaml only after CI succeeds on the current
+# default-branch head. Re-running this workflow is safe.
+# yamllint disable-line rule:truthy
+on:
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main]
+    types:
+      - completed
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Publish version from config.yaml
+    if: >
+      github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.event == 'push'
+      && github.event.workflow_run.head_branch
+        == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    env:
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      REPOSITORY: ${{ github.repository }}
+    steps:
+      - name: ⤵️ Check out tested revision
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ env.HEAD_SHA }}
+
+      - name: 🔎 Validate release candidate
+        id: candidate
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          version_lines="$(grep -Ec '^version:[[:space:]]*[^[:space:]]+[[:space:]]*$' cloudflared/config.yaml || true)"
+          if [[ "$version_lines" -ne 1 ]]; then
+            echo "::error file=cloudflared/config.yaml::Expected exactly one unquoted top-level version value"
+            exit 1
+          fi
+
+          version="$(sed -nE 's/^version:[[:space:]]*([^[:space:]]+)[[:space:]]*$/\1/p' cloudflared/config.yaml)"
+          if [[ ! "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error file=cloudflared/config.yaml::Version '$version' is not a stable SemVer value (X.Y.Z)"
+            exit 1
+          fi
+
+          remote_sha="$(gh api "repos/$REPOSITORY/commits/$DEFAULT_BRANCH" --jq .sha)"
+          if [[ "$HEAD_SHA" != "$remote_sha" ]]; then
+            echo "::notice::Skipping stale CI revision $HEAD_SHA; current $DEFAULT_BRANCH is $remote_sha"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          latest_version="$(
+            git tag --list 'v*' |
+              sed -nE 's/^v((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))$/\1/p' |
+              sort -V |
+              tail -n 1
+          )"
+
+          if [[ -n "$latest_version" && "$version" == "$latest_version" ]]; then
+            echo "::notice::v$version is already the current version; nothing to publish"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          greatest_version="$(printf '%s\n%s\n' "$latest_version" "$version" | sort -V | tail -n 1)"
+          if [[ -n "$latest_version" && "$greatest_version" != "$version" ]]; then
+            echo "::error file=cloudflared/config.yaml::Version $version must be greater than v$latest_version"
+            exit 1
+          fi
+
+          tag="v$version"
+          if git rev-parse --verify --quiet "refs/tags/$tag" >/dev/null; then
+            echo "::error::$tag already exists"
+            exit 1
+          fi
+
+          releases="$(gh api "repos/$REPOSITORY/releases?per_page=100")"
+          published_filter='.[] | select(.tag_name == $tag and .draft == false)'
+          if jq -e --arg tag "$tag" "$published_filter" <<< "$releases" >/dev/null; then
+            echo "::error::A published release for $tag already exists"
+            exit 1
+          fi
+
+          draft_count="$(jq '[.[] | select(.draft == true)] | length' <<< "$releases")"
+          if [[ "$draft_count" -ne 1 ]]; then
+            echo "::error::Expected exactly one Release Drafter draft, found $draft_count"
+            exit 1
+          fi
+
+          draft_id="$(jq -r '.[] | select(.draft == true) | .id' <<< "$releases")"
+          echo "draft_id=$draft_id" >> "$GITHUB_OUTPUT"
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Validated release candidate $tag at $HEAD_SHA"
+
+      - name: 🚀 Publish release as latest
+        if: steps.candidate.outputs.publish == 'true'
+        env:
+          DRAFT_ID: ${{ steps.candidate.outputs.draft_id }}
+          TAG: ${{ steps.candidate.outputs.tag }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          remote_sha="$(gh api "repos/$REPOSITORY/commits/$DEFAULT_BRANCH" --jq .sha)"
+          if [[ "$HEAD_SHA" != "$remote_sha" ]]; then
+            echo "::error::Default branch moved after validation; refusing to publish a stale revision"
+            exit 1
+          fi
+
+          gh api --method PATCH "repos/$REPOSITORY/releases/$DRAFT_ID" \
+            -f tag_name="$TAG" \
+            -f target_commitish="$HEAD_SHA" \
+            -f name="$TAG" \
+            -F draft=false \
+            -F prerelease=false \
+            -f make_latest=true \
+            --jq '"Published \(.html_url)"'
+
+      - name: 📝 Summarize release
+        if: steps.candidate.outputs.publish == 'true'
+        env:
+          TAG: ${{ steps.candidate.outputs.tag }}
+        run: |
+          {
+            echo "## Released $TAG"
+            echo ""
+            echo "Published the tested revision \`$HEAD_SHA\` as the latest release."
+            echo "The release event will start the stable container deployment."
+          } >> "$GITHUB_STEP_SUMMARY"

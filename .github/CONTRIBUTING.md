@@ -25,6 +25,24 @@ Even better: You could submit a pull request with a fix / new feature!
    developer, or if you do not have permission to do that, you may request
    the reviewer to merge it for you.
 
+## Maintainer release process
+
+Releasing is intentionally a one-file operation:
+
+1. Change the top-level `version` in `cloudflared/config.yaml` to a greater,
+   stable semantic version such as `8.1.0`.
+1. Open and merge the pull request normally.
+1. After CI succeeds on the current `main` revision, the Release workflow
+   publishes the Release Drafter draft under the matching `v8.1.0` tag and
+   marks it as the latest release. The release event then deploys the stable
+   container images.
+
+The workflow does nothing when the config version already matches the newest
+version tag. It rejects malformed or decreasing versions, existing tags or
+releases, stale CI revisions, failed CI, non-push runs, and ambiguous release
+drafts. A failed release can be retried from the Actions page after correcting
+the reported condition; no manual tag should be created.
+
 [coc]: /.github/CODE_OF_CONDUCT.md
 [github]: https://github.com/BTreeMap/hass-cloudflared/issues
 [prs]: https://github.com/BTreeMap/hass-cloudflared/pulls
