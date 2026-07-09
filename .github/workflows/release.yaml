@@ -27,6 +27,10 @@ jobs:
       && github.event.workflow_run.head_branch
         == github.event.repository.default_branch
     runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.candidate.outputs.deploy }}
+      published: ${{ steps.candidate.outputs.publish }}
+      tag: ${{ steps.candidate.outputs.tag }}
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -71,9 +75,28 @@ jobs:
               tail -n 1
           )"
 
+          tag="v$version"
           if [[ -n "$latest_version" && "$version" == "$latest_version" ]]; then
-            echo "::notice::v$version is already the current version; nothing to publish"
+            release="$(gh api "repos/$REPOSITORY/releases/tags/$tag")"
+            if [[ "$(jq -r .draft <<< "$release")" != "false" ]]; then
+              echo "::error::Existing release $tag is unexpectedly still a draft"
+              exit 1
+            fi
+
+            owner="${GITHUB_REPOSITORY_OWNER,,}"
+            image="ghcr.io/$owner/cloudflared"
+            if docker manifest inspect "$image:$version" >/dev/null 2>&1 \
+              && docker manifest inspect "$image:stable" >/dev/null 2>&1; then
+              echo "::notice::$tag and its stable container manifests already exist; nothing to publish"
+              echo "deploy=false" >> "$GITHUB_OUTPUT"
+              echo "publish=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            echo "::warning::$tag exists, but its stable container manifests are missing; repairing deployment"
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
             echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           greatest_version="$(printf '%s\n%s\n' "$latest_version" "$version" | sort -V | tail -n 1)"
@@ -82,7 +105,6 @@ jobs:
             exit 1
           fi
 
-          tag="v$version"
           if git rev-parse --verify --quiet "refs/tags/$tag" >/dev/null; then
             echo "::error::$tag already exists"
             exit 1
@@ -102,6 +124,7 @@ jobs:
           fi
 
           draft_id="$(jq -r '.[] | select(.draft == true) | .id' <<< "$releases")"
+          echo "deploy=true" >> "$GITHUB_OUTPUT"
           echo "draft_id=$draft_id" >> "$GITHUB_OUTPUT"
           echo "publish=true" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
@@ -142,3 +165,17 @@ jobs:
             echo "Published the tested revision \`$HEAD_SHA\` as the latest release."
             echo "The release event will start the stable container deployment."
           } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Deploy stable release
+    needs: release
+    if: needs.release.outputs.deploy == 'true'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/upstream-deploy.yaml
+    secrets: inherit
+    with:
+      event_name: release
+      release_prerelease: false
+      release_tag_name: ${{ needs.release.outputs.tag }}
