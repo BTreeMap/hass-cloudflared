@@ -1,0 +1,81 @@
+---
+name: Home Assistant E2E
+
+# This workflow is intentionally independent from CI and release gates.
+# yamllint disable-line rule:truthy
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: home-assistant-e2e
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: Latest Home Assistant lifecycle
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: ⤵️ Check out code from GitHub
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: ⚡ Set up uv
+        uses: astral-sh/setup-uv@v8.3.2
+        with:
+          version: "0.11.28"
+
+      - name: 🧰 Install test dependencies
+        run: uv sync --frozen
+
+      - name: 🏗 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4.2.0
+
+      - name: 🏗 Build production add-on image
+        uses: docker/build-push-action@v7.3.0
+        with:
+          context: cloudflared
+          file: cloudflared/Dockerfile
+          load: true
+          push: false
+          tags: hass-cloudflared:e2e
+          cache-from: type=gha,scope=cloudflared-e2e-amd64
+          cache-to: type=gha,mode=max,scope=cloudflared-e2e-amd64
+          build-args: |
+            BUILD_ARCH=amd64
+            BUILD_DATE=${{ github.event.repository.updated_at }}
+            BUILD_DESCRIPTION=Cloudflared Home Assistant E2E
+            BUILD_NAME=Cloudflared
+            BUILD_REF=${{ github.sha }}
+            BUILD_REPOSITORY=${{ github.repository }}
+            BUILD_VERSION=e2e
+
+      - name: 🧪 Exercise Home Assistant and add-on lifecycle
+        run: >-
+          uv run python scripts/e2e_home_assistant.py
+          --addon-image hass-cloudflared:e2e
+          --home-assistant-image ghcr.io/home-assistant/home-assistant:stable
+          --artifacts e2e-artifacts
+
+      - name: 📦 Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: home-assistant-e2e-${{ github.run_id }}
+          path: e2e-artifacts
+          if-no-files-found: warn
+          retention-days: 14
