@@ -1,4 +1,5 @@
 import json
+from http import HTTPStatus
 from pathlib import Path
 from types import TracebackType
 from typing import Self
@@ -11,6 +12,7 @@ from scripts.e2e_home_assistant import (
     wait_for_http,
     write_json,
 )
+from tests.e2e.mock_supervisor import supervisor_response
 
 
 class SuccessfulResponse:
@@ -112,3 +114,36 @@ def test_wait_for_http_fails_immediately_when_process_exits(
             timeout=120,
             assert_live=assert_live,
         )
+
+
+def test_supervisor_response_authenticates_and_reloads_options(tmp_path: Path) -> None:
+    options_path = tmp_path / "options.json"
+    token_paths = {"Bearer accepted": options_path}
+    write_json(options_path, {"log_level": "debug"})
+
+    status, document = supervisor_response(
+        "/addons/self/options/config",
+        "Bearer accepted",
+        token_paths=token_paths,
+    )
+    assert status is HTTPStatus.OK
+    assert document == {"result": "ok", "data": {"log_level": "debug"}}
+
+    write_json(options_path, {"log_level": "info"})
+    _, reloaded = supervisor_response(
+        "/addons/self/options/config",
+        "Bearer accepted",
+        token_paths=token_paths,
+    )
+    assert reloaded["data"] == {"log_level": "info"}
+
+
+def test_supervisor_response_rejects_unknown_token(tmp_path: Path) -> None:
+    status, document = supervisor_response(
+        "/addons/self/options/config",
+        "Bearer rejected",
+        token_paths={"Bearer accepted": tmp_path / "options.json"},
+    )
+
+    assert status is HTTPStatus.UNAUTHORIZED
+    assert document == {"result": "error"}

@@ -23,12 +23,14 @@ class Settings:
     home_assistant_image: str
     artifacts: Path
     mock_cloudflared: Path
+    mock_supervisor: Path
 
 
 @dataclass(frozen=True, slots=True)
 class Runtime:
     network: str
     home_assistant: str
+    supervisor: str
     addon: str
     invalid_addon: str
     root: Path
@@ -139,6 +141,7 @@ def create_runtime(root: Path) -> Runtime:
     return Runtime(
         network=f"cloudflared-e2e-{suffix}",
         home_assistant=f"home-assistant-e2e-{suffix}",
+        supervisor=f"supervisor-e2e-{suffix}",
         addon=f"cloudflared-e2e-{suffix}",
         invalid_addon=f"cloudflared-invalid-e2e-{suffix}",
         root=root,
@@ -215,11 +218,40 @@ def start_addon(settings: Settings, runtime: Runtime) -> None:
         "run",
         "--detach",
         "--name",
+        runtime.supervisor,
+        "--network",
+        runtime.network,
+        "--network-alias",
+        "supervisor",
+        "--publish",
+        "127.0.0.1::80",
+        "--volume",
+        f"{runtime.addon_data}:/addon-data:ro",
+        "--volume",
+        f"{runtime.invalid_addon_data}:/invalid-addon-data:ro",
+        "--volume",
+        f"{settings.mock_supervisor}:/mock-supervisor.py:ro",
+        "--entrypoint",
+        "python",
+        settings.home_assistant_image,
+        "/mock-supervisor.py",
+    )
+    wait_for_http(
+        f"http://127.0.0.1:{published_port(runtime.supervisor, 80)}/health",
+        timeout=30,
+        assert_live=lambda: assert_running(runtime.supervisor),
+    )
+    docker(
+        "run",
+        "--detach",
+        "--name",
         runtime.addon,
         "--network",
         runtime.network,
         "--publish",
         "127.0.0.1::36500",
+        "--env",
+        "SUPERVISOR_TOKEN=cloudflared-e2e",
         "--volume",
         f"{runtime.addon_data}:/data",
         "--volume",
@@ -334,6 +366,8 @@ def assert_invalid_config_is_rejected(settings: Settings, runtime: Runtime) -> N
         runtime.invalid_addon,
         "--network",
         runtime.network,
+        "--env",
+        "SUPERVISOR_TOKEN=cloudflared-invalid-e2e",
         "--volume",
         f"{runtime.invalid_addon_data}:/data",
         "--volume",
@@ -368,6 +402,7 @@ def collect_artifacts(
     settings.artifacts.mkdir(parents=True, exist_ok=True)
     containers = {
         "home-assistant": runtime.home_assistant,
+        "supervisor": runtime.supervisor,
         "addon": runtime.addon,
         "invalid-addon": runtime.invalid_addon,
     }
@@ -403,7 +438,12 @@ def collect_artifacts(
 
 def cleanup(settings: Settings, runtime: Runtime) -> None:
     """Remove E2E resources independently and idempotently."""
-    for container in (runtime.invalid_addon, runtime.addon, runtime.home_assistant):
+    for container in (
+        runtime.invalid_addon,
+        runtime.addon,
+        runtime.supervisor,
+        runtime.home_assistant,
+    ):
         docker("rm", "--force", container, check=False)
     docker("network", "rm", runtime.network, check=False)
     docker(
@@ -430,17 +470,25 @@ def parse_settings() -> Settings:
         type=Path,
         default=Path("tests/e2e/mock_cloudflared.sh"),
     )
+    parser.add_argument(
+        "--mock-supervisor",
+        type=Path,
+        default=Path("tests/e2e/mock_supervisor.py"),
+    )
     arguments = parser.parse_args()
     return Settings(
         addon_image=arguments.addon_image,
         home_assistant_image=arguments.home_assistant_image,
         artifacts=arguments.artifacts.resolve(),
         mock_cloudflared=arguments.mock_cloudflared.resolve(),
+        mock_supervisor=arguments.mock_supervisor.resolve(),
     )
 
 
 def main() -> None:
     settings = parse_settings()
+    if shutil.which("docker") is None:
+        raise SystemExit("Docker CLI is required to run the Home Assistant E2E test")
     with tempfile.TemporaryDirectory(
         prefix="hass-cloudflared-e2e-",
         ignore_cleanup_errors=True,
@@ -458,6 +506,7 @@ def main() -> None:
         except Exception:
             for label, container in (
                 ("Home Assistant", runtime.home_assistant),
+                ("Supervisor API double", runtime.supervisor),
                 ("add-on", runtime.addon),
                 ("invalid add-on", runtime.invalid_addon),
             ):

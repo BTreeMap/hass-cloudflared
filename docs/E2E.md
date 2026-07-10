@@ -12,17 +12,21 @@ fourteen days of diagnostic artifacts.
 Each run builds the production add-on Dockerfile and pulls the current
 `ghcr.io/home-assistant/home-assistant:stable` image. Both containers run on an
 isolated Docker network under their production DNS relationship. The test uses
-Supervisor-compatible `/data/options.json`, mounts the real Home Assistant
-configuration at `/homeassistant`, and runs the add-on's real base image, s6
-startup graph, preparation service, entrypoint, BusyBox Digital Asset Links
-server, and installed Cloudflared command boundary.
+an authenticated Supervisor-compatible options endpoint backed by
+`/data/options.json`, mounts the real Home Assistant configuration at
+`/homeassistant`, and runs the add-on's real base image, s6 startup graph,
+preparation service, entrypoint, BusyBox Digital Asset Links server, and
+installed Cloudflared command boundary. The options endpoint re-reads persisted
+configuration for every container start, matching Supervisor restart semantics.
 
-The only test double is the Cloudflared process itself. Exercising the real
-Cloudflare control plane would require privileged account credentials, mutate
-DNS and tunnel state, introduce Internet nondeterminism, and make pull requests
-unsafe. The deterministic replacement validates arguments, proves it can reach
-the real Home Assistant frontend and the internal Digital Asset Links server,
-and exposes a metrics readiness endpoint.
+Two deliberately narrow test doubles complete boundaries absent from the
+standalone Home Assistant image: the Supervisor options endpoint required by
+Bashio startup and the Cloudflared process. Exercising the real Cloudflare
+control plane would require privileged account credentials, mutate DNS and
+tunnel state, introduce Internet nondeterminism, and make pull requests unsafe.
+The deterministic Cloudflared replacement validates arguments, proves it can
+reach the real Home Assistant frontend and the internal Digital Asset Links
+server, and exposes a metrics readiness endpoint.
 
 ## Lifecycle coverage
 

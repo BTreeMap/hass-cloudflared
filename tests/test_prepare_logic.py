@@ -9,7 +9,8 @@ from pathlib import Path
 from typing import TypedDict, cast
 
 import pytest
-from conftest import PROJECT_ROOT
+
+from tests.conftest import PROJECT_ROOT
 
 RUN_SH = (
     PROJECT_ROOT

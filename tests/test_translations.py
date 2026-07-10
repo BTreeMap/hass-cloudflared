@@ -1,7 +1,7 @@
 from collections.abc import Mapping
 from typing import cast
 
-from conftest import PROJECT_ROOT, YamlMapping, load_yaml_mapping
+from tests.conftest import PROJECT_ROOT, YamlMapping, load_yaml_mapping
 
 TRANSLATIONS_DIR = PROJECT_ROOT / "cloudflared" / "translations"
 

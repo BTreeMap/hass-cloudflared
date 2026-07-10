@@ -1,7 +1,7 @@
 from collections.abc import Iterator, Mapping
 from typing import cast
 
-from conftest import YamlMapping
+from tests.conftest import YamlMapping
 
 
 def _mapping_at(mapping: Mapping[str, object], key: str) -> YamlMapping:
