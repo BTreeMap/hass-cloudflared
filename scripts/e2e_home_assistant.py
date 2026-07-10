@@ -7,11 +7,12 @@ import http.client
 import json
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 import urllib.request
 import uuid
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -70,11 +71,18 @@ def docker_logs(container: str) -> str:
     return result.stdout + result.stderr
 
 
-def wait_for_http(url: str, *, timeout: float) -> bytes:
+def wait_for_http(
+    url: str,
+    *,
+    timeout: float,
+    assert_live: Callable[[], None] | None = None,
+) -> bytes:
     """Wait until an HTTP endpoint responds successfully or fail with context."""
     deadline = time.monotonic() + timeout
     last_error: Exception | None = None
     while time.monotonic() < deadline:
+        if assert_live is not None:
+            assert_live()
         try:
             with urllib.request.urlopen(url, timeout=5) as response:
                 body: object = response.read()
@@ -92,7 +100,9 @@ def assert_running(container: str) -> None:
     """Assert that Docker still considers a container alive."""
     state = docker("inspect", "--format", "{{.State.Running}}", container)
     if state != "true":
-        raise AssertionError(f"container {container} is not running")
+        raise AssertionError(
+            f"container {container} is not running\nlogs:\n{docker_logs(container)}"
+        )
 
 
 def write_json(path: Path, value: Mapping[str, object]) -> None:
@@ -242,7 +252,11 @@ def assetlink_sites(document: object) -> list[str]:
 def assert_initial_addon_behavior(runtime: Runtime) -> None:
     """Verify readiness, HA reachability, DAL serving, and tunnel arguments."""
     metrics_url = f"http://127.0.0.1:{published_port(runtime.addon, 36500)}/metrics"
-    metrics = wait_for_http(metrics_url, timeout=120).decode()
+    metrics = wait_for_http(
+        metrics_url,
+        timeout=120,
+        assert_live=lambda: assert_running(runtime.addon),
+    ).decode()
     if "cloudflared_e2e_up 1" not in metrics:
         raise AssertionError(f"unexpected metrics payload: {metrics}")
 
@@ -275,6 +289,7 @@ def assert_restart_and_reconfiguration(runtime: Runtime) -> None:
     wait_for_http(
         f"http://127.0.0.1:{published_port(runtime.addon, 36500)}/metrics",
         timeout=120,
+        assert_live=lambda: assert_running(runtime.addon),
     )
     assert_running(runtime.addon)
 
@@ -289,6 +304,7 @@ def assert_restart_and_reconfiguration(runtime: Runtime) -> None:
     wait_for_http(
         f"http://127.0.0.1:{published_port(runtime.addon, 36500)}/metrics",
         timeout=120,
+        assert_live=lambda: assert_running(runtime.addon),
     )
     assert_running(runtime.addon)
     if (runtime.addon_data / "digital-asset-links").exists():
@@ -385,11 +401,23 @@ def collect_artifacts(
     )
 
 
-def cleanup(runtime: Runtime) -> None:
+def cleanup(settings: Settings, runtime: Runtime) -> None:
     """Remove E2E resources independently and idempotently."""
     for container in (runtime.invalid_addon, runtime.addon, runtime.home_assistant):
         docker("rm", "--force", container, check=False)
     docker("network", "rm", runtime.network, check=False)
+    docker(
+        "run",
+        "--rm",
+        "--volume",
+        f"{runtime.root}:/cleanup",
+        "--entrypoint",
+        "/bin/rm",
+        settings.addon_image,
+        "-rf",
+        "/cleanup",
+        check=False,
+    )
 
 
 def parse_settings() -> Settings:
@@ -413,7 +441,10 @@ def parse_settings() -> Settings:
 
 def main() -> None:
     settings = parse_settings()
-    with tempfile.TemporaryDirectory(prefix="hass-cloudflared-e2e-") as temporary:
+    with tempfile.TemporaryDirectory(
+        prefix="hass-cloudflared-e2e-",
+        ignore_cleanup_errors=True,
+    ) as temporary:
         runtime = create_runtime(Path(temporary))
         version: str | None = None
         try:
@@ -424,9 +455,23 @@ def main() -> None:
             assert_invalid_config_is_rejected(settings, runtime)
             assert_running(runtime.home_assistant)
             print(f"E2E passed against Home Assistant {version}")
+        except Exception:
+            for label, container in (
+                ("Home Assistant", runtime.home_assistant),
+                ("add-on", runtime.addon),
+                ("invalid add-on", runtime.invalid_addon),
+            ):
+                print(
+                    f"\n--- {label} logs ---\n{docker_logs(container)}",
+                    file=sys.stderr,
+                )
+            raise
         finally:
-            collect_artifacts(settings, runtime, version=version)
-            cleanup(runtime)
+            try:
+                collect_artifacts(settings, runtime, version=version)
+            except (OSError, RuntimeError) as error:
+                print(f"Unable to collect all E2E artifacts: {error}", file=sys.stderr)
+            cleanup(settings, runtime)
 
 
 if __name__ == "__main__":

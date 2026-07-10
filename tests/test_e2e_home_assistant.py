@@ -92,3 +92,23 @@ def test_wait_for_http_retries_connection_reset(
 
     assert wait_for_http("http://home-assistant.test", timeout=1) == b"ready"
     assert attempts == 2
+
+
+def test_wait_for_http_fails_immediately_when_process_exits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def reject_request(url: str, *, timeout: float) -> SuccessfulResponse:
+        del url, timeout
+        raise AssertionError("HTTP must not be attempted after process exit")
+
+    def assert_live() -> None:
+        raise AssertionError("container exited")
+
+    monkeypatch.setattr("urllib.request.urlopen", reject_request)
+
+    with pytest.raises(AssertionError, match="container exited"):
+        wait_for_http(
+            "http://cloudflared.test/metrics",
+            timeout=120,
+            assert_live=assert_live,
+        )
