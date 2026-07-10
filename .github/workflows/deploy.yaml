@@ -23,9 +23,9 @@ jobs:
       || (
         github.event_name == 'workflow_run'
         && github.event.workflow_run.conclusion == 'success'
+        && github.event.workflow_run.event == 'push'
       )
     uses: ./.github/workflows/upstream-deploy.yaml
-    secrets: inherit
     with:
       event_name: ${{ github.event_name }}
       release_prerelease: ${{ github.event.release.prerelease || false }}

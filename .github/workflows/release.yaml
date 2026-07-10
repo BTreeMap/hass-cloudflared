@@ -15,20 +15,22 @@ concurrency:
   group: release
   cancel-in-progress: false
 
-permissions:
-  contents: write
+permissions: {}
 
 jobs:
-  release:
-    name: Publish version from config.yaml
+  validate:
+    name: Validate version from config.yaml
     if: >
       github.event.workflow_run.conclusion == 'success'
       && github.event.workflow_run.event == 'push'
       && github.event.workflow_run.head_branch
         == github.event.repository.default_branch
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       deploy: ${{ steps.candidate.outputs.deploy }}
+      draft_id: ${{ steps.candidate.outputs.draft_id }}
       published: ${{ steps.candidate.outputs.publish }}
       tag: ${{ steps.candidate.outputs.tag }}
     env:
@@ -38,9 +40,10 @@ jobs:
       REPOSITORY: ${{ github.repository }}
     steps:
       - name: ⤵️ Check out tested revision
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           fetch-depth: 0
+          persist-credentials: false
           ref: ${{ env.HEAD_SHA }}
 
       - name: 🔎 Validate release candidate
@@ -130,11 +133,22 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "Validated release candidate $tag at $HEAD_SHA"
 
+  publish:
+    name: Publish release
+    needs: validate
+    if: needs.validate.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      DRAFT_ID: ${{ needs.validate.outputs.draft_id }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      REPOSITORY: ${{ github.repository }}
+      TAG: ${{ needs.validate.outputs.tag }}
+    steps:
       - name: 🚀 Publish release as latest
-        if: steps.candidate.outputs.publish == 'true'
-        env:
-          DRAFT_ID: ${{ steps.candidate.outputs.draft_id }}
-          TAG: ${{ steps.candidate.outputs.tag }}
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -155,9 +169,8 @@ jobs:
             --jq '"Published \(.html_url)"'
 
       - name: 📝 Summarize release
-        if: steps.candidate.outputs.publish == 'true'
         env:
-          TAG: ${{ steps.candidate.outputs.tag }}
+          TAG: ${{ needs.validate.outputs.tag }}
         run: |
           {
             echo "## Released $TAG"
@@ -168,14 +181,18 @@ jobs:
 
   deploy:
     name: Deploy stable release
-    needs: release
-    if: needs.release.outputs.deploy == 'true'
+    needs:
+      - validate
+      - publish
+    if: >
+      always()
+      && needs.validate.outputs.deploy == 'true'
+      && (needs.publish.result == 'success' || needs.publish.result == 'skipped')
     permissions:
       contents: read
       packages: write
     uses: ./.github/workflows/upstream-deploy.yaml
-    secrets: inherit
     with:
       event_name: release
       release_prerelease: false
-      release_tag_name: ${{ needs.release.outputs.tag }}
+      release_tag_name: ${{ needs.validate.outputs.tag }}

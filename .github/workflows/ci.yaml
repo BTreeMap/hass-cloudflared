@@ -22,7 +22,6 @@ permissions:
 jobs:
   ci:
     uses: ./.github/workflows/upstream-ci.yaml
-    secrets: inherit
     with:
       default_branch: ${{ github.event.repository.default_branch }}
       event_name: ${{ github.event_name }}
