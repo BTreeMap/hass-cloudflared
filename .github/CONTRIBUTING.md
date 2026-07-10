@@ -33,14 +33,13 @@ Releasing is intentionally a one-file operation:
    stable semantic version such as `8.1.0`.
 1. Open and merge the pull request normally.
 1. After CI succeeds on the current `main` revision, the Release workflow
-   publishes the Release Drafter draft under the matching `v8.1.0` tag and
-   marks it as the latest release. The same workflow then deploys the stable
-   versioned container images directly.
+   publishes a GitHub-generated release under the matching `v8.1.0` tag, marks
+   it as the latest release, and deploys the stable versioned container images.
 
 The workflow does nothing when the config version already matches the newest
 version tag. It rejects malformed or decreasing versions, existing tags or
 releases, stale CI revisions, failed CI, non-push runs, and ambiguous release
-drafts. A failed release can be retried from the Actions page after correcting
+state. A failed release can be retried from the Actions page after correcting
 the reported condition; no manual tag should be created. If a release exists
 but its versioned or `stable` container manifest is missing, the next successful
 CI run repairs that deployment automatically.

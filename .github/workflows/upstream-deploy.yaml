@@ -1,5 +1,5 @@
 ---
-name: Deploy
+name: Reusable Deploy
 
 # yamllint disable-line rule:truthy
 on:
@@ -33,30 +33,38 @@ jobs:
     name: ℹ️ Gather app (add-on) information
     runs-on: ubuntu-latest
     outputs:
-      architectures: ${{ steps.information.outputs.architectures }}
-      build: ${{ steps.information.outputs.build }}
-      description: ${{ steps.information.outputs.description }}
+      architectures: ${{ steps.metadata.outputs.architectures }}
+      description: ${{ steps.metadata.outputs.description }}
       environment: ${{ steps.release.outputs.environment }}
-      name: ${{ steps.information.outputs.name }}
-      slug: ${{ steps.override.outputs.slug }}
-      target: ${{ steps.information.outputs.target }}
+      name: ${{ steps.metadata.outputs.name }}
+      slug: ${{ steps.metadata.outputs.slug }}
+      target: ${{ steps.metadata.outputs.target }}
       version: ${{ steps.release.outputs.version }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: 🚀 Run app (add-on) information action
-        id: information
-        uses: homeassistant-apps/action-app-information@b895bf87f1fe6f3250341ee94b5317360a3b2451 # v2
-      - name: 🚀 Process possible slug override
-        id: override
-        run: |
-          slug="${{ steps.information.outputs.slug }}"
-          if [[ ! -z "${{ inputs.slug }}" ]]; then
-            slug="${{ inputs.slug }}"
-          fi
-          echo "slug=$slug" >> $GITHUB_OUTPUT
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: ⚡ Set up uv
+        uses: astral-sh/setup-uv@v8.3.2
+        with:
+          version: "0.11.28"
+
+      - name: 🧰 Install Python dependencies
+        run: uv sync --frozen
+
+      - name: ℹ️ Gather app metadata
+        id: metadata
+        env:
+          SLUG_OVERRIDE: ${{ inputs.slug }}
+        run: uv run python scripts/addon_metadata.py cloudflared/config.yaml
+
       - name: ℹ️ Gather version and environment
         id: release
         run: |

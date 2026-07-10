@@ -30,7 +30,6 @@ jobs:
       contents: read
     outputs:
       deploy: ${{ steps.candidate.outputs.deploy }}
-      draft_id: ${{ steps.candidate.outputs.draft_id }}
       published: ${{ steps.candidate.outputs.publish }}
       tag: ${{ steps.candidate.outputs.tag }}
     env:
@@ -113,22 +112,7 @@ jobs:
             exit 1
           fi
 
-          releases="$(gh api "repos/$REPOSITORY/releases?per_page=100")"
-          published_filter='.[] | select(.tag_name == $tag and .draft == false)'
-          if jq -e --arg tag "$tag" "$published_filter" <<< "$releases" >/dev/null; then
-            echo "::error::A published release for $tag already exists"
-            exit 1
-          fi
-
-          draft_count="$(jq '[.[] | select(.draft == true)] | length' <<< "$releases")"
-          if [[ "$draft_count" -ne 1 ]]; then
-            echo "::error::Expected exactly one Release Drafter draft, found $draft_count"
-            exit 1
-          fi
-
-          draft_id="$(jq -r '.[] | select(.draft == true) | .id' <<< "$releases")"
           echo "deploy=true" >> "$GITHUB_OUTPUT"
-          echo "draft_id=$draft_id" >> "$GITHUB_OUTPUT"
           echo "publish=true" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "Validated release candidate $tag at $HEAD_SHA"
@@ -142,7 +126,6 @@ jobs:
       contents: write
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-      DRAFT_ID: ${{ needs.validate.outputs.draft_id }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
       REPOSITORY: ${{ github.repository }}
@@ -159,12 +142,13 @@ jobs:
             exit 1
           fi
 
-          gh api --method PATCH "repos/$REPOSITORY/releases/$DRAFT_ID" \
+          gh api --method POST "repos/$REPOSITORY/releases" \
             -f tag_name="$TAG" \
             -f target_commitish="$HEAD_SHA" \
             -f name="$TAG" \
             -F draft=false \
             -F prerelease=false \
+            -F generate_release_notes=true \
             -f make_latest=true \
             --jq '"Published \(.html_url)"'
 
@@ -176,7 +160,7 @@ jobs:
             echo "## Released $TAG"
             echo ""
             echo "Published the tested revision \`$HEAD_SHA\` as the latest release."
-            echo "The release event will start the stable container deployment."
+            echo "The stable container deployment follows this job directly."
           } >> "$GITHUB_STEP_SUMMARY"
 
   deploy:

@@ -16,13 +16,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: read
+  contents: read
 
 jobs:
   ci:
     uses: ./.github/workflows/upstream-ci.yaml
-    with:
-      default_branch: ${{ github.event.repository.default_branch }}
-      event_name: ${{ github.event_name }}
-      ref_name: ${{ github.ref_name }}
