@@ -24,7 +24,7 @@ def supervisor_response(
     token_paths: Mapping[str, Path] | None = None,
 ) -> tuple[HTTPStatus, dict[str, object]]:
     """Resolve one API request, re-reading options to model restarts faithfully."""
-    if path == "/health":
+    if path in {"/health", "/supervisor/ping"}:
         return HTTPStatus.OK, {"result": "ok", "data": {}}
     if path != _OPTIONS_ENDPOINT:
         return HTTPStatus.NOT_FOUND, {"result": "error"}
@@ -52,7 +52,6 @@ class SupervisorHandler(BaseHTTPRequestHandler):
 
     server_version = "E2ESupervisor/1"
     sys_version = ""
-    protocol_version = "HTTP/1.1"
     token_paths: ClassVar[dict[str, Path]] = _TOKEN_PATHS
 
     def do_GET(self) -> None:

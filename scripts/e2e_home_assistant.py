@@ -241,6 +241,11 @@ def start_addon(settings: Settings, runtime: Runtime) -> None:
         timeout=30,
         assert_live=lambda: assert_running(runtime.supervisor),
     )
+    launch_addon(settings, runtime)
+
+
+def launch_addon(settings: Settings, runtime: Runtime) -> None:
+    """Create the managed add-on container from its persisted configuration."""
     docker(
         "run",
         "--detach",
@@ -315,7 +320,10 @@ def assert_initial_addon_behavior(runtime: Runtime) -> None:
             )
 
 
-def assert_restart_and_reconfiguration(runtime: Runtime) -> None:
+def assert_restart_and_reconfiguration(
+    settings: Settings,
+    runtime: Runtime,
+) -> None:
     """Verify restart stability, persistent state, and option removal behavior."""
     docker("restart", runtime.addon)
     wait_for_http(
@@ -325,14 +333,14 @@ def assert_restart_and_reconfiguration(runtime: Runtime) -> None:
     )
     assert_running(runtime.addon)
 
-    docker("stop", runtime.addon)
+    docker("rm", "--force", runtime.addon)
     write_json(
         runtime.addon_data / "options.json",
         addon_options(sites=(), post_quantum=False),
     )
     for marker in ("e2e-assetlinks", "e2e-cloudflared-args"):
         (runtime.addon_data / marker).unlink(missing_ok=True)
-    docker("start", runtime.addon)
+    launch_addon(settings, runtime)
     wait_for_http(
         f"http://127.0.0.1:{published_port(runtime.addon, 36500)}/metrics",
         timeout=120,
@@ -416,10 +424,20 @@ def collect_artifacts(
             encoding="utf-8",
         )
     if runtime.addon_data.exists():
-        shutil.copytree(
-            runtime.addon_data,
-            settings.artifacts / "addon-data",
-            dirs_exist_ok=True,
+        artifact_data = settings.artifacts / "addon-data"
+        artifact_data.mkdir(exist_ok=True)
+        docker(
+            "run",
+            "--rm",
+            "--volume",
+            f"{runtime.addon_data}:/source:ro",
+            "--volume",
+            f"{artifact_data}:/destination",
+            "--entrypoint",
+            "/bin/sh",
+            settings.addon_image,
+            "-c",
+            "cp -R /source/. /destination/ && chmod -R a+rX /destination",
         )
     (settings.artifacts / "summary.json").write_text(
         json.dumps(
@@ -499,7 +517,7 @@ def main() -> None:
             version = start_home_assistant(settings, runtime)
             start_addon(settings, runtime)
             assert_initial_addon_behavior(runtime)
-            assert_restart_and_reconfiguration(runtime)
+            assert_restart_and_reconfiguration(settings, runtime)
             assert_invalid_config_is_rejected(settings, runtime)
             assert_running(runtime.home_assistant)
             print(f"E2E passed against Home Assistant {version}")

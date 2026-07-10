@@ -147,3 +147,10 @@ def test_supervisor_response_rejects_unknown_token(tmp_path: Path) -> None:
 
     assert status is HTTPStatus.UNAUTHORIZED
     assert document == {"result": "error"}
+
+
+def test_supervisor_response_supports_base_image_ping() -> None:
+    status, document = supervisor_response("/supervisor/ping", "")
+
+    assert status is HTTPStatus.OK
+    assert document == {"result": "ok", "data": {}}
