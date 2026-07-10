@@ -1,13 +1,36 @@
 import json
 from pathlib import Path
+from types import TracebackType
+from typing import Self
 
 import pytest
 
 from scripts.e2e_home_assistant import (
     addon_options,
     assetlink_sites,
+    wait_for_http,
     write_json,
 )
+
+
+class SuccessfulResponse:
+    """Minimal typed context manager matching the urllib response boundary."""
+
+    status = 200
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(
+        self,
+        exception_type: type[BaseException] | None,
+        exception: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        return None
+
+    def read(self) -> bytes:
+        return b"ready"
 
 
 def test_addon_options_constructs_independent_serializable_values() -> None:
@@ -49,3 +72,23 @@ def test_write_json_replaces_document_deterministically(tmp_path: Path) -> None:
 
     assert destination.read_text(encoding="utf-8") == ('{\n  "a": true,\n  "z": 1\n}\n')
     assert not destination.with_suffix(".json.tmp").exists()
+
+
+def test_wait_for_http_retries_connection_reset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    attempts = 0
+
+    def open_with_startup_reset(url: str, *, timeout: float) -> SuccessfulResponse:
+        nonlocal attempts
+        del url, timeout
+        attempts += 1
+        if attempts == 1:
+            raise ConnectionResetError("service is still starting")
+        return SuccessfulResponse()
+
+    monkeypatch.setattr("urllib.request.urlopen", open_with_startup_reset)
+    monkeypatch.setattr("time.sleep", lambda _seconds: None)
+
+    assert wait_for_http("http://home-assistant.test", timeout=1) == b"ready"
+    assert attempts == 2

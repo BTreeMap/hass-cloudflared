@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import http.client
 import json
 import shutil
 import subprocess
 import tempfile
 import time
-import urllib.error
 import urllib.request
 import uuid
 from collections.abc import Mapping, Sequence
@@ -82,7 +82,7 @@ def wait_for_http(url: str, *, timeout: float) -> bytes:
                     if not isinstance(body, bytes):
                         raise TypeError("HTTP response body must be bytes")
                     return body
-        except (TimeoutError, urllib.error.URLError) as error:
+        except (OSError, http.client.HTTPException) as error:
             last_error = error
         time.sleep(1)
     raise TimeoutError(f"{url} did not become ready within {timeout}s: {last_error}")
