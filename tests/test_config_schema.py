@@ -1,35 +1,39 @@
-import pathlib
+from collections.abc import Iterator, Mapping
+from typing import cast
 
-import yaml
-
-
-def _load_config():
-    config_path = pathlib.Path(__file__).resolve().parents[1] / "cloudflared" / "config.yaml"
-    return yaml.safe_load(config_path.read_text(encoding="utf-8"))
+from conftest import YamlMapping
 
 
-def _collect_schema_paths(schema, prefix=""):
-    keys = []
+def _mapping_at(mapping: Mapping[str, object], key: str) -> YamlMapping:
+    value = mapping.get(key)
+    if not isinstance(value, Mapping):
+        raise AssertionError(f"{key} must be a mapping")
+    if not all(isinstance(child_key, str) for child_key in value):
+        raise AssertionError(f"{key} must use string keys")
+    return cast(Mapping[str, object], value)
+
+
+def _schema_paths(schema: YamlMapping, prefix: str = "") -> Iterator[str]:
+    """Lazily yield dotted paths for every leaf in a nested schema."""
     for key, value in schema.items():
-        if isinstance(value, dict):
-            keys.extend(_collect_schema_paths(value, f"{prefix}{key}."))
+        path = f"{prefix}{key}"
+        if isinstance(value, Mapping):
+            yield from _schema_paths(cast(Mapping[str, object], value), f"{path}.")
         else:
-            keys.append(f"{prefix}{key}")
-    return keys
+            yield path
 
 
-def test_all_options_have_schema_entries():
-    config = _load_config()
-    options = set(config["options"].keys())
-    schema = config["schema"]
-    schema_keys = {entry.split(".", 1)[0] for entry in _collect_schema_paths(schema)}
+def test_all_options_have_schema_entries(addon_config: YamlMapping) -> None:
+    options = frozenset(_mapping_at(addon_config, "options"))
+    schema = _mapping_at(addon_config, "schema")
+    schema_keys = frozenset(path.partition(".")[0] for path in _schema_paths(schema))
+
     missing = options - schema_keys
     assert not missing, f"Missing schema entries for options: {sorted(missing)}"
 
 
-def test_schema_contains_expected_options():
-    config = _load_config()
-    schema = config["schema"]
+def test_schema_contains_expected_options(addon_config: YamlMapping) -> None:
+    schema = _mapping_at(addon_config, "schema")
     expected = {
         "external_hostname",
         "additional_hosts",
@@ -42,30 +46,29 @@ def test_schema_contains_expected_options():
         "log_level",
         "digital_asset_links_sites",
     }
-    assert expected.issubset(schema.keys())
+
+    assert expected <= schema.keys()
 
 
-def test_additional_hosts_schema_shape():
-    config = _load_config()
-    additional_hosts = config["schema"]["additional_hosts"]
-    assert isinstance(additional_hosts, list)
-    assert additional_hosts, "additional_hosts schema list should not be empty"
+def test_additional_hosts_schema_shape(addon_config: YamlMapping) -> None:
+    additional_hosts = _mapping_at(addon_config, "schema").get("additional_hosts")
+    assert isinstance(additional_hosts, list) and additional_hosts
     host_schema = additional_hosts[0]
-    assert host_schema["hostname"] == "str"
-    assert host_schema["service"] == "str"
-    assert host_schema["disableChunkedEncoding"] == "bool?"
+    assert isinstance(host_schema, Mapping)
+    assert host_schema == {
+        "hostname": "str",
+        "service": "str",
+        "disableChunkedEncoding": "bool?",
+    }
 
 
-def test_run_parameters_schema_pattern():
-    config = _load_config()
-    run_parameters = config["schema"]["run_parameters"]
-    assert isinstance(run_parameters, list)
-    assert run_parameters, "run_parameters schema list should not be empty"
+def test_run_parameters_schema_pattern(addon_config: YamlMapping) -> None:
+    run_parameters = _mapping_at(addon_config, "schema").get("run_parameters")
+    assert isinstance(run_parameters, list) and run_parameters
+    assert isinstance(run_parameters[0], str)
     assert run_parameters[0].startswith("match(")
 
 
-def test_digital_asset_links_schema_entries():
-    config = _load_config()
-    dal_schema = config["schema"]["digital_asset_links_sites"]
-    assert isinstance(dal_schema, list)
-    assert dal_schema == ["str"]
+def test_digital_asset_links_schema_entries(addon_config: YamlMapping) -> None:
+    schema = _mapping_at(addon_config, "schema")
+    assert schema.get("digital_asset_links_sites") == ["str"]

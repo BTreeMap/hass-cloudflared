@@ -45,7 +45,10 @@ jobs:
         run: uv run pytest -q
 
       - name: 🚀 Lint Python
-        run: uv run ruff check .
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+          uv run mypy scripts tests
 
       - name: 🚀 Lint YAML
         run: uv run yamllint .
@@ -118,20 +121,11 @@ jobs:
             BUILD_REPOSITORY=${{ github.repository }}
             BUILD_VERSION=edge
 
-      - name: 🧪 Smoke test container start
+      - name: 🧪 Smoke test image
         env:
           IMAGE_ID: ${{ steps.build.outputs.imageid }}
-        run: |
-          cleanup() { docker rm -f cloudflared-smoke >/dev/null 2>&1 || true; }
-          trap cleanup EXIT
-          docker run -d --name cloudflared-smoke "$IMAGE_ID"
-          if timeout 5 docker wait cloudflared-smoke; then
-            echo "::error::Container exited during its startup window"
-            docker logs cloudflared-smoke
-            exit 1
-          elif [[ "$?" -ne 124 ]]; then
-            echo "::error::Unable to observe the container startup"
-            exit 1
-          fi
-          docker inspect -f '{{.State.Running}}' cloudflared-smoke | grep -qx true
-          docker logs cloudflared-smoke
+        run: >-
+          docker run --rm --entrypoint /bin/sh "$IMAGE_ID" -eu -c
+          'command -v cloudflared >/dev/null;
+          cloudflared --version;
+          test -x /run.sh'

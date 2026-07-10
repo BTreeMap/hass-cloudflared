@@ -1,12 +1,18 @@
+from __future__ import annotations
+
 import json
 import stat
 import subprocess
-import tempfile
+from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
-from string import Template
+from typing import TypedDict, cast
+
+import pytest
+from conftest import PROJECT_ROOT
 
 RUN_SH = (
-    Path(__file__).resolve().parents[1]
+    PROJECT_ROOT
     / "cloudflared"
     / "rootfs"
     / "etc"
@@ -15,58 +21,27 @@ RUN_SH = (
     / "prepare"
     / "run.sh"
 )
+BASHIO_REF = "9b30bab926bdba7b9fc0e0f2d2871ef14e17e8d6"
 
-BASHIO_REF = "9b30bab926bdba7b9fc0e0f2d2871ef14e17e8d6"  # Update when bashio changes
-
-
-def _ensure_bashio_lib(tmp_path):
-    bashio_dir = tmp_path / "bashio"
-    if not bashio_dir.exists():
-        clone_result = subprocess.run(
-            ["git", "clone", "https://github.com/hassio-addons/bashio", str(bashio_dir)],
-            capture_output=True,
-            text=True,
-        )
-        if clone_result.returncode != 0:
-            raise RuntimeError(
-                f"Failed to clone bashio: {clone_result.stdout}\n{clone_result.stderr}"
-            )
-        checkout_result = subprocess.run(
-            ["git", "-C", str(bashio_dir), "checkout", BASHIO_REF],
-            capture_output=True,
-            text=True,
-        )
-        if checkout_result.returncode != 0:
-            raise RuntimeError(
-                f"Failed to checkout bashio ref: {checkout_result.stdout}\n{checkout_result.stderr}"
-            )
-    return bashio_dir / "lib"
-
-
-def _run_setup(config_payload, log_level=0):
-    log_level = int(log_level)
-    tmp_root = Path(tempfile.mkdtemp())
-    lib_dir = _ensure_bashio_lib(tmp_root)
-    config_dir = tmp_root / "config"
-    data_dir = tmp_root / "data"
-    cache_dir = tmp_root / "cache"
-    config_dir.mkdir(parents=True, exist_ok=True)
-    data_dir.mkdir(parents=True, exist_ok=True)
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    config_json = config_dir / "config.json"
-    config_json.write_text(json.dumps(config_payload), encoding="utf-8")
-
-    script = Template(
-        r"""
-# Ensure predictable permissions when the script creates docroot files.
-umask 022
+_SETUP_SCRIPT = r"""
 set -euo pipefail
+umask 022
+
+readonly cache_dir="$1"
+readonly log_level="$2"
+readonly bashio_dir="$3"
+readonly bashio_lib_dir="$4"
+readonly config_json="$5"
+readonly dal_root="$6"
+readonly run_sh="$7"
+
 export CACHE_DIR="$cache_dir"
-export LOG_LEVEL=$log_level
+export LOG_LEVEL="$log_level"
 export BASHIO_DIR="$bashio_dir"
 source "$bashio_lib_dir/bashio.sh"
+
 bashio::addon.config() { cat "$config_json"; }
-DAL_ROOT_OVERRIDE="$dal_root"
+export DAL_ROOT_OVERRIDE="$dal_root"
 export SUPERVISOR_API="http://127.0.0.1"
 export SUPERVISOR_TOKEN=""
 export LOG_FORMAT=""
@@ -76,120 +51,145 @@ bashio::cache.set() { :; }
 bashio::cache.get() { return 1; }
 bashio::cache.flush_all() { :; }
 bashio::api.supervisor() { return 1; }
+
 source "$run_sh"
 setupDigitalAssetLinks
 """
-    ).substitute(
-        cache_dir=cache_dir,
-        bashio_dir=lib_dir.parent,
-        bashio_lib_dir=lib_dir,
-        config_json=config_json,
-        dal_root=data_dir,
-        log_level=log_level,
-        run_sh=RUN_SH,
+
+
+class AssetTarget(TypedDict):
+    site: str
+
+
+class AssetLink(TypedDict):
+    target: AssetTarget
+
+
+@dataclass(frozen=True, slots=True)
+class SetupResult:
+    process: subprocess.CompletedProcess[str]
+    data_dir: Path
+
+    @property
+    def assetlinks_path(self) -> Path:
+        return self.data_dir / "www" / ".well-known" / "assetlinks.json"
+
+
+@pytest.fixture(scope="session")
+def bashio_lib(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Clone the immutable bashio revision once for the integration-test session."""
+    bashio_dir = tmp_path_factory.mktemp("bashio")
+    subprocess.run(
+        [
+            "git",
+            "clone",
+            "--quiet",
+            "https://github.com/hassio-addons/bashio",
+            str(bashio_dir),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
     )
-    result = subprocess.run(
-        script, shell=True, text=True, capture_output=True, executable="/bin/bash"
+    subprocess.run(
+        ["git", "-C", str(bashio_dir), "checkout", "--quiet", BASHIO_REF],
+        check=True,
+        capture_output=True,
+        text=True,
     )
-    return result, data_dir
+    return bashio_dir / "lib"
 
 
-def _read_assetlinks(path):
-    return json.loads(Path(path).read_text(encoding="utf-8"))
+def _run_setup(
+    config_payload: Mapping[str, object],
+    *,
+    tmp_path: Path,
+    bashio_lib: Path,
+    log_level: int = 0,
+) -> SetupResult:
+    config_dir = tmp_path / "config"
+    data_dir = tmp_path / "data"
+    cache_dir = tmp_path / "cache"
+    for directory in (config_dir, data_dir, cache_dir):
+        directory.mkdir(parents=True, exist_ok=True)
+
+    config_json = config_dir / "config.json"
+    config_json.write_text(json.dumps(config_payload), encoding="utf-8")
+    process = subprocess.run(
+        [
+            "/bin/bash",
+            "-c",
+            _SETUP_SCRIPT,
+            "prepare-integration-test",
+            str(cache_dir),
+            str(log_level),
+            str(bashio_lib.parent),
+            str(bashio_lib),
+            str(config_json),
+            str(data_dir),
+            str(RUN_SH),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return SetupResult(process=process, data_dir=data_dir)
 
 
-def test_warns_non_https():
-    result, data_dir = _run_setup(
+def _read_assetlinks(path: Path) -> list[AssetLink]:
+    raw_links: object = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(raw_links, list):
+        raise AssertionError("assetlinks document must be a list")
+    for raw_link in raw_links:
+        if not isinstance(raw_link, dict):
+            raise AssertionError("every asset link must be a mapping")
+        target = raw_link.get("target")
+        if not isinstance(target, dict) or not isinstance(target.get("site"), str):
+            raise AssertionError("every asset link must contain a string target.site")
+    return cast(list[AssetLink], raw_links)
+
+
+def _assert_success(result: SetupResult) -> None:
+    assert result.process.returncode == 0, result.process.stderr
+
+
+@pytest.mark.parametrize(
+    ("site", "expects_warning"),
+    [
+        ("http://example.com", True),
+        ("https://example.com/path", True),
+        ("https://example.com:99999", False),
+        ("https://bad_host", False),
+        ("https://example.com:abc", False),
+    ],
+)
+def test_preserves_configured_site_and_reports_pattern_mismatch(
+    site: str,
+    expects_warning: bool,
+    tmp_path: Path,
+    bashio_lib: Path,
+) -> None:
+    result = _run_setup(
         {
-            "digital_asset_links_sites": ["http://example.com"],
+            "digital_asset_links_sites": [site],
             "external_hostname": "ha.example.com",
         },
+        tmp_path=tmp_path,
+        bashio_lib=bashio_lib,
         log_level=5,
     )
-    assert result.returncode == 0
-    assert (
-        "'http://example.com' in 'digital_asset_links_sites' does not match the expected https://hostname[:port] pattern. Continuing with original value."
-        in result.stdout
+    warning = (
+        f"'{site}' in 'digital_asset_links_sites' does not match the expected "
+        "https://hostname[:port] pattern. Continuing with original value."
     )
-    assetlinks = Path(data_dir) / "www" / ".well-known" / "assetlinks.json"
-    data = _read_assetlinks(assetlinks)
-    assert data[0]["target"]["site"] == "http://example.com"
+
+    _assert_success(result)
+    assert (warning in result.process.stdout) is expects_warning
+    assert _read_assetlinks(result.assetlinks_path)[0]["target"]["site"] == site
 
 
-def test_warns_path():
-    result, data_dir = _run_setup(
-        {
-            "digital_asset_links_sites": ["https://example.com/path"],
-            "external_hostname": "ha.example.com",
-        },
-        log_level=5,
-    )
-    assert result.returncode == 0
-    assert (
-        "'https://example.com/path' in 'digital_asset_links_sites' does not match the expected https://hostname[:port] pattern. Continuing with original value."
-        in result.stdout
-    )
-    assetlinks = Path(data_dir) / "www" / ".well-known" / "assetlinks.json"
-    data = _read_assetlinks(assetlinks)
-    assert data[0]["target"]["site"] == "https://example.com/path"
-
-
-def test_warns_port_out_of_range():
-    result, data_dir = _run_setup(
-        {
-            "digital_asset_links_sites": ["https://example.com:99999"],
-            "external_hostname": "ha.example.com",
-        },
-        log_level=5,
-    )
-    assert result.returncode == 0
-    assert (
-        "'https://example.com:99999' in 'digital_asset_links_sites' does not match the expected https://hostname[:port] pattern. Continuing with original value."
-        not in result.stdout
-    )
-    assetlinks = Path(data_dir) / "www" / ".well-known" / "assetlinks.json"
-    data = _read_assetlinks(assetlinks)
-    assert data[0]["target"]["site"] == "https://example.com:99999"
-
-
-def test_warns_invalid_hostname():
-    result, data_dir = _run_setup(
-        {
-            "digital_asset_links_sites": ["https://bad_host"],
-            "external_hostname": "ha.example.com",
-        },
-        log_level=5,
-    )
-    assert result.returncode == 0
-    assert (
-        "'https://bad_host' in 'digital_asset_links_sites' does not match the expected https://hostname[:port] pattern. Continuing with original value."
-        not in result.stdout
-    )
-    assetlinks = Path(data_dir) / "www" / ".well-known" / "assetlinks.json"
-    data = _read_assetlinks(assetlinks)
-    assert data[0]["target"]["site"] == "https://bad_host"
-
-
-def test_warns_non_numeric_port():
-    result, data_dir = _run_setup(
-        {
-            "digital_asset_links_sites": ["https://example.com:abc"],
-            "external_hostname": "ha.example.com",
-        },
-        log_level=5,
-    )
-    assert result.returncode == 0
-    assert (
-        "'https://example.com:abc' in 'digital_asset_links_sites' does not match the expected https://hostname[:port] pattern. Continuing with original value."
-        not in result.stdout
-    )
-    assetlinks = Path(data_dir) / "www" / ".well-known" / "assetlinks.json"
-    data = _read_assetlinks(assetlinks)
-    assert data[0]["target"]["site"] == "https://example.com:abc"
-
-
-def test_dedupes_and_sorts():
-    result, data_dir = _run_setup(
+def test_deduplicates_and_sorts_sites(tmp_path: Path, bashio_lib: Path) -> None:
+    result = _run_setup(
         {
             "digital_asset_links_sites": [
                 "https://b.example.com",
@@ -197,48 +197,58 @@ def test_dedupes_and_sorts():
                 "https://a.example.com",
             ],
             "external_hostname": "ha.example.com",
-        }
+        },
+        tmp_path=tmp_path,
+        bashio_lib=bashio_lib,
     )
-    assert result.returncode == 0
-    assetlinks = Path(data_dir) / "www" / ".well-known" / "assetlinks.json"
-    data = _read_assetlinks(assetlinks)
-    sites = [entry["target"]["site"] for entry in data]
+
+    _assert_success(result)
+    sites = [
+        entry["target"]["site"] for entry in _read_assetlinks(result.assetlinks_path)
+    ]
     assert sites == ["https://a.example.com", "https://b.example.com"]
 
 
-def test_accepts_valid_port():
-    result, data_dir = _run_setup(
+def test_accepts_valid_port(tmp_path: Path, bashio_lib: Path) -> None:
+    result = _run_setup(
         {
             "digital_asset_links_sites": ["https://example.com:8443"],
             "external_hostname": "ha.example.com",
-        }
+        },
+        tmp_path=tmp_path,
+        bashio_lib=bashio_lib,
     )
-    assert result.returncode == 0
-    assetlinks = Path(data_dir) / "www" / ".well-known" / "assetlinks.json"
-    data = _read_assetlinks(assetlinks)
-    assert data[0]["target"]["site"] == "https://example.com:8443"
+
+    _assert_success(result)
+    assert _read_assetlinks(result.assetlinks_path)[0]["target"]["site"] == (
+        "https://example.com:8443"
+    )
 
 
-def test_docroot_permissions():
-    result, data_dir = _run_setup(
+def test_docroot_permissions_are_private(tmp_path: Path, bashio_lib: Path) -> None:
+    result = _run_setup(
         {
             "digital_asset_links_sites": ["https://example.com"],
             "external_hostname": "ha.example.com",
-        }
+        },
+        tmp_path=tmp_path,
+        bashio_lib=bashio_lib,
     )
-    assert result.returncode == 0
-    docroot = Path(data_dir) / "www"
-    mode = docroot.stat().st_mode
-    assert mode & stat.S_IRWXG == 0
-    assert mode & stat.S_IRWXO == 0
+
+    _assert_success(result)
+    mode = (result.data_dir / "www").stat().st_mode
+    assert mode & (stat.S_IRWXG | stat.S_IRWXO) == 0
 
 
-def test_empty_list_removes_output():
-    result, data_dir = _run_setup(
+def test_empty_site_list_removes_output(tmp_path: Path, bashio_lib: Path) -> None:
+    result = _run_setup(
         {
             "digital_asset_links_sites": [],
             "external_hostname": "ha.example.com",
-        }
+        },
+        tmp_path=tmp_path,
+        bashio_lib=bashio_lib,
     )
-    assert result.returncode == 0
-    assert not (Path(data_dir) / "www").exists()
+
+    _assert_success(result)
+    assert not (result.data_dir / "www").exists()

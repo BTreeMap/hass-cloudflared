@@ -25,6 +25,18 @@ Even better: You could submit a pull request with a fix / new feature!
    developer, or if you do not have permission to do that, you may request
    the reviewer to merge it for you.
 
+## Python design standards
+
+Python code must keep dynamic data at explicit validation boundaries and expose
+typed, narrow interfaces internally. Prefer pure transformations, immutable
+value objects, total functions, deterministic output, generators for streaming
+traversals, and explicit resource ownership. Avoid `Any`, implicit mutation,
+shell interpolation, duplicated parsing, and untyped function definitions.
+
+CI enforces strict mypy checking plus Ruff correctness, modernization,
+performance, simplification, import-order, and formatting rules for all Python
+source and tests.
+
 ## Maintainer release process
 
 Releasing is intentionally a one-file operation:
