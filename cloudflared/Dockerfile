@@ -11,7 +11,7 @@ ARG YQ_VERSION="4.53.3-r0"
 # renovate: datasource=repology depName=busybox packageName=alpine_3_24/busybox versioning=loose
 ARG BUSYBOX_VERSION="1.37.0-r31"
 # renovate: datasource=github-releases depName=cloudflared packageName=cloudflare/cloudflared versioning=loose
-ARG CLOUDFLARED_VERSION="2026.7.2"
+ARG CLOUDFLARED_VERSION="2026.7.3"
 
 # Copy root filesystem
 COPY rootfs /
