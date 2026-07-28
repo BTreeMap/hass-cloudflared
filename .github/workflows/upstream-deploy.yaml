@@ -54,7 +54,7 @@ jobs:
       - name: ⚡ Set up uv
         uses: astral-sh/setup-uv@v9.0.0
         with:
-          version: "0.11.32"
+          version: "0.11.33"
 
       - name: 🧰 Install Python dependencies
         run: uv sync --frozen
@@ -121,7 +121,7 @@ jobs:
           owner="${GITHUB_REPOSITORY_OWNER,,}"
           echo "owner=$owner" >> "$GITHUB_OUTPUT"
       - name: 🏗  Login to GitHub Container Registry
-        uses: docker/login-action@v4.5.1
+        uses: docker/login-action@v4.5.2
         with:
           registry: ghcr.io
           username: ${{ steps.registry.outputs.owner }}
@@ -178,7 +178,7 @@ jobs:
           owner="${GITHUB_REPOSITORY_OWNER,,}"
           echo "owner=$owner" >> "$GITHUB_OUTPUT"
       - name: 🏗  Login to GitHub Container Registry
-        uses: docker/login-action@v4.5.1
+        uses: docker/login-action@v4.5.2
         with:
           registry: ghcr.io
           username: ${{ steps.registry.outputs.owner }}
