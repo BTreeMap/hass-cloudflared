@@ -54,7 +54,7 @@ jobs:
       - name: ⚡ Set up uv
         uses: astral-sh/setup-uv@v10.0.1
         with:
-          version: "0.12.7"
+          version: "0.12.8"
 
       - name: 🧰 Install Python dependencies
         run: uv sync --frozen
@@ -100,7 +100,7 @@ jobs:
         with:
           persist-credentials: false
       - name: 🏗 Set up QEMU
-        uses: docker/setup-qemu-action@v4.2.0
+        uses: docker/setup-qemu-action@v4.3.0
       - name: 🏗 Set up Docker Buildx
         uses: docker/setup-buildx-action@v4.3.0
       - name: ℹ️ Compose build flags
