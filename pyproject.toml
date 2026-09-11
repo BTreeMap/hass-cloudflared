@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Test tooling for hass-cloudflared"
 requires-python = ">=3.12"
 dependencies = [
-  "mypy==2.2.0",
+  "mypy==2.3.1",
   "pyyaml==6.0.3",
   "pytest==9.1.1",
   "ruff==0.16.4",
