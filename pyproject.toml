@@ -6,7 +6,7 @@ requires-python = ">=3.12"
 dependencies = [
   "mypy==2.2.0",
   "pyyaml==6.0.3",
-  "pytest==9.1.1",
+  "pytest==9.2.0",
   "ruff==0.16.4",
   "types-pyyaml==6.0.12.20260518",
   "yamllint==1.38.0",
