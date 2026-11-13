@@ -54,7 +54,7 @@ jobs:
       - name: ⚡ Set up uv
         uses: astral-sh/setup-uv@v10.3.3
         with:
-          version: "0.13.7"
+          version: "0.13.8"
 
       - name: 🧰 Install Python dependencies
         run: uv sync --frozen
